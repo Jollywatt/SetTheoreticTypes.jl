@@ -43,11 +43,26 @@ issubset(A::Kinds,   B::OrKind)  = A ⊆ B.a || A ⊆ B.b
 issubset(A::OrKind,  B::Kinds)   = A.a ⊆ B && A.b ⊆ B
 issubset(A::OrKind,  B::OrKind)  = A.a ⊆ B && A.b ⊆ B
 
-issubset(A::Kinds,   B::AndKind) = A ⊆ B.a && A ⊆ B.b
 issubset(A::AndKind, B::Kinds)   = A.a ⊆ B || A.b ⊆ B
+issubset(A::Kinds,   B::AndKind) = A ⊆ B.a && A ⊆ B.b
 issubset(A::AndKind, B::AndKind) = A ⊆ B.a && A ⊆ B.b
 
+issubset(A::Kinds,   B::NotKind) = A ∩ B.a === Bottom
+# issubset(A::NotKind, B::Kinds)   = B === Top
+issubset(A::NotKind, B::NotKind) = B.a ⊆ A.a
+
+
+
+# issubset(A::OrKind,  B::AndKind) = A.a ⊆ B && A.b ⊆ B # \ unsure which
+issubset(A::OrKind,  B::AndKind) = A ⊆ B.a && A ⊆ B.b # /
 issubset(A::AndKind, B::OrKind)  = A ⊆ B.a || A ⊆ B.b
-issubset(A::OrKind,  B::AndKind) = A ⊆ B.a && A ⊆ B.b
+
+issubset(A::AndKind, B::NotKind) = B.a ⊆ !A.a ∪ !A.b
+issubset(A::NotKind, B::AndKind) = !B.a ∪ !B.b ⊆ A.a
+issubset(A::OrKind,  B::NotKind) = B.a ⊆ !A.a ∩ !A.b
+issubset(A::NotKind, B::OrKind)  = !B.a ∩ !B.b ⊆ A.a
+
+
+# ambiguity resolution
 
 Base.:(==)(A::Kinds, B::Kinds) = A ⊆ B ⊆ A

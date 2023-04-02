@@ -49,6 +49,12 @@ Set-theoretic union kind-type, analogue of `Core.Union`.
 struct OrKind
 	a
 	b
+	function OrKind(A, B)
+		(A === Top || B === Top) && return Top
+		A ⊆ B && return B
+		A ⊇ B && return A
+		new(A, B)
+	end
 end
 
 """
@@ -60,6 +66,14 @@ Has no analogue in base Julia.
 struct AndKind
 	a
 	b
+	function AndKind(A, B)
+		(A === Bottom || B === Bottom) && return Bottom
+		A ⊆ B && return A
+		A ⊇ B && return B
+		isconcretekind(A) && A ⊈ B && return Bottom
+		isconcretekind(B) && B ⊈ A && return Bottom
+		new(A, B)
+	end
 end
 
 """
@@ -70,6 +84,12 @@ Has no analogue in base Julia.
 """
 struct NotKind
 	a
+	function NotKind(A)
+		A === Top && return Bottom
+		A === Bottom && return Top
+		new(A)
+	end
+	NotKind(A::NotKind) = A.a
 end
 
 const Top = Kind(:Top, nothing, [], false)

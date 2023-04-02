@@ -22,6 +22,15 @@ apply_kind(A, B, C...) = apply_kind(apply_kind(A, B), C...)
 Kinds = Union{Kind,ParametricKind,OrKind,AndKind,NotKind}
 
 
+
+isconcretekind(A::Kind) = A.isconcrete && !any(p -> p isa KindVar, A.parameters)
+isconcretekind(A::AndKind) = false
+isconcretekind(A::OrKind)  = false
+isconcretekind(A::NotKind) = false
+
+
+
+
 function Base.getindex(A::Kinds, B...)
 	apply_kind(A, B...)
 end
