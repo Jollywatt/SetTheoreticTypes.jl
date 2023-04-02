@@ -83,18 +83,14 @@ Has no analogue in base Julia.
 """
 struct NotKind
 	a
-	function NotKind(A)
-		A === Top && return Bottom
-		A === Bottom && return Top
-		new(A)	
-	end
+	NotKind(A) = new(A)	
 	NotKind(A::NotKind) = A.a
 	NotKind(A::OrKind)  = AndKind(!A.a, !A.b)
 	NotKind(A::AndKind) = OrKind(!A.a, !A.b)
 end
 
 const Top = Kind(:Top, nothing, [], false)
-const Bottom = Kind(:Bottom, nothing, [], false)
+const Bottom = NotKind(Top)
 
 
 include("operations.jl")

@@ -42,7 +42,8 @@ issubset(A::AndKind, B::OrKind)  = A ⊆ B.a || A ⊆ B.b
 
 
 function issubset(A::Kind, B::NotKind)
-	A === Top && return false
+	A !== Bottom === B && return false
+	A === Top !== B && return false
 
 	# α ∉ !B ==> α ∈ B
 	isconcretekind(A) && A ⊈ B.a && return true

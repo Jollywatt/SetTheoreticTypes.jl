@@ -1,6 +1,8 @@
 substitute(A::KindVar, (from, to)::Pair{KindVar}) = A === from ? to : A
 
 function substitute(A::Kind, (from, to)::Pair{KindVar})
+	(A === Bottom || A === Top) && return A
+
 	parameters = map(A.parameters) do p
 		substitute(p, from => to)
 	end
