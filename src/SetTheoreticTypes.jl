@@ -1,8 +1,10 @@
 module SetTheoreticTypes
 
-export Kind, KindVar, ParametricKind, OrKind, AndKind, NotKind
+import Base: issubset
 
+export Kind, KindVar, ParametricKind, OrKind, AndKind, NotKind
 export Top, Bottom
+
 
 """
 	Kind(name, super, parameters, isconcrete)
@@ -26,6 +28,7 @@ struct KindVar
 	lb
 	ub
 end
+KindVar(name) = KindVar(name, Bottom, Top)
 
 """
 	ParametricKind(var, body)
@@ -73,6 +76,8 @@ const Top = Kind(:Top, nothing, [], false)
 const Bottom = Kind(:Bottom, nothing, [], false)
 
 
+include("operations.jl")
+include("relations.jl")
 include("show.jl")
 
 
