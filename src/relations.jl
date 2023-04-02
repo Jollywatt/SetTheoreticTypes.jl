@@ -1,32 +1,6 @@
+Base.:(==)(A::Kinds, B::Kinds) = A ⊆ B ⊆ A
+
 superkind(A::Kind) = A === Top ? Top : A.super
-
-function parametersagree!(state, A, B::KindVar)
-	B.lb ⊆ A ⊆ B.ub || return false
-	if B ∈ keys(state)
-		state[B] == A
-	else
-		state[B] = A
-		true
-	end
-end
-function parametersagree!(state, A::Kind, B::Kind)
-	A.name === B.name && length(A.parameters) === length(B.parameters) || return false
-	all(zip(A.parameters, B.parameters)) do (a, b)
-		parametersagree!(state, a, b)
-	end
-end
-
-function issubset(A::Kind, B::Kind)
-	(A === Bottom || B === Top) && return true
-	(B === Bottom || A === Top) && return false
-
-	parametersagree!(IdDict(), A, B) || superkind(A) ⊆ B
-end
-
-function issubset(A::Kind, B::ParametricKind)
-	# todo: is this correct?
-	A ⊆ B.body
-end
 
 
 issubset(A::Kind,    B::OrKind)  = A ⊆ B.a || A ⊆ B.b
@@ -60,7 +34,7 @@ function issubset(A::Kind, B::NotKind)
 	false
 end
 
-issubset(A::NotKind, B::Kind) = B === Top # sus
+issubset(A::NotKind, B::Kind) = A === Bottom || B === Top # sus
 issubset(A::NotKind, B::NotKind) = B.a ⊆ A.a # <== !A.a ⊆ !B.a
 
 
@@ -71,4 +45,46 @@ issubset(A::OrKind,  B::NotKind) = B.a ⊆ !A.a ∩ !A.b # <== A.a ∪ A.b ⊆ !
 issubset(A::NotKind, B::OrKind)  = !B.a ∩ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∪ B.b
 
 
-Base.:(==)(A::Kinds, B::Kinds) = A ⊆ B ⊆ A
+
+
+#= Parametric kinds =#
+
+function iscompatible!(state, (key, val))
+	if key ∈ keys(state)
+		state[key] == val
+	else
+		state[key] = val
+		true
+	end
+end
+
+function parametersagree!(state, A, B::KindVar)
+	B.lb ⊆ A ⊆ B.ub && iscompatible!(state, B => A)
+end
+function parametersagree!(state, A::KindVar, B::KindVar)
+	A.lb == B.lb && A.ub == B.ub && iscompatible!(state, B => A)
+end
+
+function parametersagree!(state, A::Kind, B::Kind)
+	A.name === B.name && length(A.parameters) === length(B.parameters) || return false
+	for (a, b) in zip(A.parameters, B.parameters)
+		parametersagree!(state, a, b) || return false
+	end
+	true
+end
+parametersagree!(state, A::T, B::T) where T = A == b
+parametersagree!(state, A, B) = false
+
+function issubset(A::Kind, B::Kind)
+	(A === Bottom || B === Top) && return true
+	(A === Top || B === Bottom) && return false
+
+	parametersagree!(IdDict(), A, B) || superkind(A) ⊆ B
+end
+
+issubset(A::Kind, B::ParametricKind) = A ⊆ B.body
+issubset(A::ParametricKind, B::Kind) = A.body ⊆ B
+issubset(A::ParametricKind, B::ParametricKind) = A.body ⊆ B.body
+
+
+

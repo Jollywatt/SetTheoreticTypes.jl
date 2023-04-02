@@ -7,7 +7,7 @@ function substitute(A::Kind, (from, to)::Pair{KindVar})
 		substitute(p, from => to)
 	end
 
-	Kind(A.name, A.super, parameters, A.isconcrete)
+	Kind(A.name, substitute(A.super, from => to), parameters, A.isconcrete)
 end
 
 function substitute(A::ParametricKind, (from, to)::Pair{KindVar})

@@ -5,7 +5,7 @@ import Base: issubset
 export Kind, KindVar, ParametricKind, OrKind, AndKind, NotKind
 export Top, Bottom
 
-export superkind
+export superkind, isconcretekind
 
 """
 	Kind(name, super, parameters, isconcrete)
