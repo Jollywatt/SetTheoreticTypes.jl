@@ -5,6 +5,7 @@ import Base: issubset
 export Kind, KindVar, ParametricKind, OrKind, AndKind, NotKind
 export Top, Bottom
 
+export superkind
 
 """
 	Kind(name, super, parameters, isconcrete)
@@ -50,9 +51,9 @@ struct OrKind
 	a
 	b
 	function OrKind(A, B)
-		(A === Top || B === Top) && return Top
 		A ⊆ B && return B
 		A ⊇ B && return A
+		!A ⊆ B && return Top
 		new(A, B)
 	end
 end
@@ -67,11 +68,9 @@ struct AndKind
 	a
 	b
 	function AndKind(A, B)
-		(A === Bottom || B === Bottom) && return Bottom
 		A ⊆ B && return A
 		A ⊇ B && return B
-		isconcretekind(A) && A ⊈ B && return Bottom
-		isconcretekind(B) && B ⊈ A && return Bottom
+		A ⊆ !B && return Bottom
 		new(A, B)
 	end
 end
@@ -87,9 +86,11 @@ struct NotKind
 	function NotKind(A)
 		A === Top && return Bottom
 		A === Bottom && return Top
-		new(A)
+		new(A)	
 	end
 	NotKind(A::NotKind) = A.a
+	NotKind(A::OrKind)  = AndKind(!A.a, !A.b)
+	NotKind(A::AndKind) = OrKind(!A.a, !A.b)
 end
 
 const Top = Kind(:Top, nothing, [], false)

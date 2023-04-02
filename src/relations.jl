@@ -1,17 +1,16 @@
 superkind(A::Kind) = A === Top ? Top : A.super
 
-function matchparameter!(state, parameter, value)
-	if parameter ∈ keys(state)
-		state[parameter] == value
+function parametersagree!(state, A, B::KindVar)
+	B.lb ⊆ A ⊆ B.ub || return false
+	if B ∈ keys(state)
+		state[B] == A
 	else
-		state[parameter] = value
+		state[B] = A
 		true
 	end
 end
-parametersagree!(state, A, B::KindVar) = B.lb ⊆ A ⊆ B.ub && matchparameter!(state, A, B)
 function parametersagree!(state, A::Kind, B::Kind)
-	(A.name, length(A.parameters)) === (B.name, length(B.parameters)) || return false
-
+	A.name === B.name && length(A.parameters) === length(B.parameters) || return false
 	all(zip(A.parameters, B.parameters)) do (a, b)
 		parametersagree!(state, a, b)
 	end
@@ -19,18 +18,9 @@ end
 
 function issubset(A::Kind, B::Kind)
 	(A === Bottom || B === Top) && return true
-	B === Bottom && return false
+	(B === Bottom || A === Top) && return false
 
-	if (A.name, length(A.parameters)) === (B.name, length(B.parameters))
-		# check parameters agree
-		parametersagree!(IdDict(), A, B)
-
-
-	elseif superkind(A) === Top
-		false
-	else
-		superkind(A) ⊆ B
-	end
+	parametersagree!(IdDict(), A, B) || superkind(A) ⊆ B
 end
 
 function issubset(A::Kind, B::ParametricKind)
@@ -39,30 +29,45 @@ function issubset(A::Kind, B::ParametricKind)
 end
 
 
-issubset(A::Kinds,   B::OrKind)  = A ⊆ B.a || A ⊆ B.b
-issubset(A::OrKind,  B::Kinds)   = A.a ⊆ B && A.b ⊆ B
+issubset(A::Kind,    B::OrKind)  = A ⊆ B.a || A ⊆ B.b
+issubset(A::OrKind,  B::Kind)    = A.a ⊆ B && A.b ⊆ B
 issubset(A::OrKind,  B::OrKind)  = A.a ⊆ B && A.b ⊆ B
 
-issubset(A::AndKind, B::Kinds)   = A.a ⊆ B || A.b ⊆ B
-issubset(A::Kinds,   B::AndKind) = A ⊆ B.a && A ⊆ B.b
+issubset(A::AndKind, B::Kind)    = A.a ⊆ B || A.b ⊆ B
+issubset(A::Kind,    B::AndKind) = A ⊆ B.a && A ⊆ B.b
 issubset(A::AndKind, B::AndKind) = A ⊆ B.a && A ⊆ B.b
 
-issubset(A::Kinds,   B::NotKind) = A ∩ B.a === Bottom
-# issubset(A::NotKind, B::Kinds)   = B === Top
-issubset(A::NotKind, B::NotKind) = B.a ⊆ A.a
-
-
-
-# issubset(A::OrKind,  B::AndKind) = A.a ⊆ B && A.b ⊆ B # \ unsure which
-issubset(A::OrKind,  B::AndKind) = A ⊆ B.a && A ⊆ B.b # /
+issubset(A::OrKind,  B::AndKind) = A ⊆ B.a && A ⊆ B.b
 issubset(A::AndKind, B::OrKind)  = A ⊆ B.a || A ⊆ B.b
 
-issubset(A::AndKind, B::NotKind) = B.a ⊆ !A.a ∪ !A.b
-issubset(A::NotKind, B::AndKind) = !B.a ∪ !B.b ⊆ A.a
-issubset(A::OrKind,  B::NotKind) = B.a ⊆ !A.a ∩ !A.b
-issubset(A::NotKind, B::OrKind)  = !B.a ∩ !B.b ⊆ A.a
+
+function issubset(A::Kind, B::NotKind)
+	A === Top && return false
+
+	# α ∉ !B ==> α ∈ B
+	isconcretekind(A) && A ⊈ B.a && return true
+
+	# β ∉ A => A ⊆ !β
+	isconcretekind(B.a) && B.a ⊈ A && return true
+
+	# A ⊆ sup(A) && sup(A) ⊆ B ==> A ⊆ B
+	A.super ⊆ B && return true
+
+	# !B ⊆ sup(!B) && A ⊆ !sup(!B) ==> A ⊆ B
+	B.a isa Kind && A ⊆ !B.a.super && return true
+
+	false
+end
+
+issubset(A::NotKind, B::Kind) = B === Top # sus
+issubset(A::NotKind, B::NotKind) = B.a ⊆ A.a # <== !A.a ⊆ !B.a
 
 
-# ambiguity resolution
+# Derived from De Morgan’s laws
+issubset(A::AndKind, B::NotKind) = B.a ⊆ !A.a ∪ !A.b # <== A.a ∩ A.b ⊆ !B.a
+issubset(A::NotKind, B::AndKind) = !B.a ∪ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∩ B.b
+issubset(A::OrKind,  B::NotKind) = B.a ⊆ !A.a ∩ !A.b # <== A.a ∪ A.b ⊆ !B.a
+issubset(A::NotKind, B::OrKind)  = !B.a ∩ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∪ B.b
+
 
 Base.:(==)(A::Kinds, B::Kinds) = A ⊆ B ⊆ A
