@@ -1,11 +1,9 @@
 module SetTheoreticTypes
 
-import Base: issubset
-
 export Kind, KindVar, ParametricKind, OrKind, AndKind, NotKind
 export Top, Bottom
 
-export superkind, isconcretekind
+export superkind, superkinds, isconcretekind
 
 """
 	Kind(name, super, parameters, isconcrete)
@@ -17,6 +15,12 @@ struct Kind
 	super
 	parameters::Vector
 	isconcrete::Bool
+	Kind(name, ::Nothing, parameters, isconcrete) = new(name, nothing, parameters, isconcrete)
+	function Kind(name, super, parameters, isconcrete)
+		isconcretekind(super) && error("Concrete kinds cannot have subkinds")
+		super === Bottom && error("$super cannot have subkinds")
+		new(name, super, parameters, isconcrete)
+	end
 end
 
 """
@@ -59,7 +63,7 @@ struct OrKind
 end
 
 # distribute over or (like UnionAll distributing over Union)
-ParametricKind(var, A::OrKind) = ParametricKind(var, A.a) ∪ ParametricKind(var, A.b)
+# ParametricKind(var, A::OrKind) = ParametricKind(var, A.a) ∪ ParametricKind(var, A.b)
 
 """
 	AndKind(a, b)
@@ -92,12 +96,19 @@ struct NotKind
 	NotKind(A::AndKind) = OrKind(!A.a, !A.b)
 end
 
+isconcretekind(A::Kind) = A.isconcrete && !any(p -> p isa KindVar, A.parameters)
+isconcretekind(A::ParametricKind) = false
+isconcretekind(A::OrKind)  = false
+isconcretekind(A::AndKind) = false
+isconcretekind(A::NotKind) = false
+
 const Kinds = Union{Kind,ParametricKind,OrKind,AndKind,NotKind}
 
 const Top = Kind(:Top, nothing, [], false)
 const Bottom = NotKind(Top)
 
 
+include("utils.jl")
 include("operations.jl")
 include("relations.jl")
 include("show.jl")

@@ -56,9 +56,9 @@ end
 	γ = Kind(:γ, A ∩ B, [], true)
 
 	#= Kind-space diagram
-	Each point is a concrete kind; non-concrete kinds are subsets.
+	Each point is a concrete kind; non-concrete kinds are shown as sets.
 	Concrete kinds cannot have subkinds, and hence can be thought of
-	as points or singleton sets which have only one subkind: themselves.
+	as points (or singleton sets) which contain only one kind: themselves.
 	┌─────────────── Top ──────────────┐
 	│  ┌────── A ────────┐             │
 	│  │  ·α      ┌──────┼─── B ────┐  │
@@ -66,8 +66,9 @@ end
 	│  └──────────┼──────┘    ·β    │  │
 	│             └─────────────────┘  │
 	└──────────────────────────────────┘
-	Note that concrete kinds may be thought of as sets of values,
-	even though in these diagrams they appear as points.
+	Note that we usually think of both concrete and non-concrete types
+	as sets of point-like values or instances. Here, we are thinking of
+	non-concrete kinds as sets of point-like concrete kinds.
 	=#
 
 	@test !!A === A
@@ -143,15 +144,22 @@ end
 
 @testset "parametric kinds" begin
 
-	Number′ = Kind(:Number, Top, [], false)
-	Real′ = Kind(:Real, Number′, [], false)
-	Integer′ = Kind(:Integer, Real′, [], false)
+	# Here we mirror some of Julia’s built-in types
+	# so that each kind test can be sanity-checked
+	# by pairing it with the corresponding type test.
 
-	Int′ = Kind(:Int, Integer′, [], true)
-	Bool′ = Kind(:Bool, Integer′, [], true)
+	Number′  = Kind(:Number,  Top,      [], false)
+	Real′    = Kind(:Real,    Number′,  [], false)
+	Integer′ = Kind(:Integer, Real′,    [], false)
+	Signed′  = Kind(:Signed,  Integer′, [], false)
+	Int′     = Kind(:Int,     Signed′,  [], true)
+	Bool′    = Kind(:Bool,    Integer′, [], true)
 	Complex′ = let T = KindVar(:T, Bottom, Real′)
 		ParametricKind(T, Kind(:Complex, Number′, [T], true))
 	end
+
+	@test Int <: Signed <: Integer <: Real <: Number <: Any
+	@test Int′ ⊆ Signed′ ⊆ Integer′ ⊆ Real′ ⊆ Number′ ⊆ Top
 
 	@testset "mirroring simple number types" begin
 		@test Int <: Number
@@ -176,9 +184,9 @@ end
 	end
 
 	@testset "single abstract parameter" begin
+		X = KindVar(:X)
 
 		abstract type Boxlike{T} end
-		X = KindVar(:X)
 		Boxlike′ = ParametricKind(X, Kind(:Boxlike, Top, [X], false))
 
 		struct Box{T} <: Boxlike{T} end
@@ -229,12 +237,12 @@ end
 		T, D = KindVar.([:T, :D])
 
 		AbstractArray′ = ParametricKind(T, ParametricKind(D, Kind(:AbstractArray, Top, [T,D], false)))
-		DenseArray′ = ParametricKind(T, ParametricKind(D, Kind(:DenseArray, AbstractArray′[T,D], [T,D], false)))
-		Array′ = ParametricKind(T, ParametricKind(D, Kind(:Array, DenseArray′[T,D], [T,D], false)))
+		DenseArray′    = ParametricKind(T, ParametricKind(D, Kind(:DenseArray, AbstractArray′[T,D], [T,D], false)))
+		Array′         = ParametricKind(T, ParametricKind(D, Kind(:Array, DenseArray′[T,D], [T,D], false)))
 
 		AbstractVector′ = ParametricKind(T, AbstractArray′[T,1])
-		DenseVector′ = ParametricKind(T, DenseArray′[T,1])
-		Vector′ = ParametricKind(T, Array′[T,1])
+		DenseVector′    = ParametricKind(T, DenseArray′[T,1])
+		Vector′         = ParametricKind(T, Array′[T,1])
 
 		@test Vector{Int} <: AbstractVector{Int} <: AbstractArray{Int,1}
 		@test Vector′[Int′] ⊆ AbstractVector′[Int′] ⊆ AbstractArray′[Int′,1]
@@ -246,7 +254,6 @@ end
 		@test Complex′ ∪ Vector′ ⊆ ParametricKind(T, Complex′[T] ∪ Vector′[T])
 
 		A, B = KindVar.([:A, :B])
-
 		Pair′ = ParametricKind(A, ParametricKind(B, Kind(:Pair, Top, [A, B], true)))
 
 		@test !(Pair{Int,Bool} <: Pair{T,T} where T)
@@ -264,22 +271,48 @@ end
 
 	@testset "intersections and complements" begin
 		
-		T = KindVar(:T)
+		T, S = KindVar.([:T, :S])
 
 		A = Kind(:A, Top, [], false)
 		B = Kind(:B, Top, [], false)
 
 		P = ParametricKind(T, Kind(:P, Top, [T], false))
 		Q = ParametricKind(T, Kind(:Q, Top, [T], false))
+		P2 = ParametricKind(T, ParametricKind(S, Kind(:P2, Top, [T, S], false)))
 
-		P2 = let T1 = KindVar(:T1), T2 = KindVar(:T2)
-			ParametricKind(T1, ParametricKind(T2, Kind(:P2, Top, [T1, T2], false)))
-		end
-
+		@test P[A] ∪ P[B] ⊆ ParametricKind(T, P[T])
+		@test P[A] ∩ P[B] ⊆ ParametricKind(T, P[T])
 
 		@test P[A] ∪ Q[B] ⊆ ParametricKind(T, P[T] ∪ Q[T])
-		@test_broken P[A] ∩ Q[B] ⊈ ParametricKind(T, P[T] ∩ Q[T])
+		@test P[A] ∩ Q[B] ⊈ ParametricKind(T, P[T] ∩ Q[T])
 
+		@test P2[A,B] ⊈ ParametricKind(T, P2[T,T])
+
+		@test (Pair{T,T} where T) <: Pair{T,S} where T where S
+		@test ParametricKind(T, P2[T,T]) ⊆ ParametricKind(T, ParametricKind(S, P2[T,S]))
+
+		@test P2[A,B] ⊈ ParametricKind(T, P2[T,T])
+
+		# Ok, this one requires explanation:
+		@test P2[A,B] ⊈ !ParametricKind(T, P2[T,T])
+		# We don’t expect P2[A,B] ⊆ !(P2[T, T] where T)
+		# because P2[A,B] is not a concrete kind, and
+		# hence the intersection
+		@test P2[A,B] ∩ ParametricKind(T, P2[T,T]) !== Bottom
+		# is not empty. Indeed, we can directly construct a kind
+		Weird = Kind(:Weird, P2[A,B] ∩ P2[A,A], [], false)
+		# which is a subset of this intersection:
+		@test Weird ⊆ P2[A,B]
+		@test Weird ⊆ ParametricKind(T, P2[T,T])
+		@test Weird ⊆ P2[A,B] ∩ ParametricKind(T, P2[T,T])
+
+		# This changes with concrete kinds, however.
+		π2 = ParametricKind(T, ParametricKind(S, Kind(:π2, Top, [T, S], true)))
+		# Now, we have
+		@test π2[A,B] ⊆ !ParametricKind(T, π2[T,T])
+		# because the intersection
+		@test π2[A,B] ∩ ParametricKind(T, π2[T,T]) === Bottom
+		# is indeed empty.
 	end
 end
 

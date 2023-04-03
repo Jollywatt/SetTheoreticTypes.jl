@@ -1,19 +1,30 @@
 Base.:(==)(A::Kinds, B::Kinds) = A ⊆ B ⊆ A
 
+#=
+We want to write many methods of the form:
 
-issubset(A::Kind,    B::OrKind)  = A ⊆ B.a || A ⊆ B.b
-issubset(A::OrKind,  B::Kind)    = A.a ⊆ B && A.b ⊆ B
-issubset(A::OrKind,  B::OrKind)  = A.a ⊆ B && A.b ⊆ B
+	issubkind!(ctx, A, B) = issubkind!(ctx, x, y) && ...
 
-issubset(A::AndKind, B::Kind)    = A.a ⊆ B || A.b ⊆ B
-issubset(A::Kind,    B::AndKind) = A ⊆ B.a && A ⊆ B.b
-issubset(A::AndKind, B::AndKind) = A ⊆ B.a && A ⊆ B.b
+With the macro `@ctx`, this becomes:
 
-issubset(A::OrKind,  B::AndKind) = A ⊆ B.a && A ⊆ B.b
-issubset(A::AndKind, B::OrKind)  = A ⊆ B.a || A ⊆ B.b
+	@ctx A ⊆ B = x ⊆ y && ...
+
+which is a little easier.
+=#
+
+@ctx A::Kind    ⊆ B::OrKind  = A ⊆ B.a || A ⊆ B.b
+@ctx A::OrKind  ⊆ B::Kind    = A.a ⊆ B && A.b ⊆ B
+@ctx A::OrKind  ⊆ B::OrKind  = A.a ⊆ B && A.b ⊆ B
+
+@ctx A::AndKind ⊆ B::Kind    = A.a ⊆ B || A.b ⊆ B
+@ctx A::Kind    ⊆ B::AndKind = A ⊆ B.a && A ⊆ B.b
+@ctx A::AndKind ⊆ B::AndKind = A ⊆ B.a && A ⊆ B.b
+
+@ctx A::OrKind  ⊆ B::AndKind = A ⊆ B.a && A ⊆ B.b
+@ctx A::AndKind ⊆ B::OrKind  = A ⊆ B.a || A ⊆ B.b
 
 
-function issubset(A::Kind, B::NotKind)
+function issubkind!(ctx, A::Kind, B::NotKind)
 	A !== Bottom === B && return false
 	A === Top !== B && return false
 
@@ -24,59 +35,60 @@ function issubset(A::Kind, B::NotKind)
 	isconcretekind(B.a) && B.a ⊈ A && return true
 
 	# A ⊆ sup(A) && sup(A) ⊆ B ==> A ⊆ B
-	A.super ⊆ B && return true
+	@ctx A.super ⊆ B && return true
 
 	# !B ⊆ sup(!B) && A ⊆ !sup(!B) ==> A ⊆ B
-	B.a isa Kind && A ⊆ !B.a.super && return true
+	@ctx B.a isa Kind && A ⊆ !B.a.super && return true
 
 	false
 end
 
-issubset(A::NotKind, B::Kind) = A === Bottom || B === Top # sus
-issubset(A::NotKind, B::NotKind) = B.a ⊆ A.a # <== !A.a ⊆ !B.a
+@ctx A::NotKind ⊆ B::Kind = A === Bottom || B === Top # sus
+@ctx A::NotKind ⊆ B::NotKind = B.a ⊆ A.a # <== !A.a ⊆ !B.a
 
 
 # Derived from De Morgan’s laws
-issubset(A::AndKind, B::NotKind) = B.a ⊆ !A.a ∪ !A.b # <== A.a ∩ A.b ⊆ !B.a
-issubset(A::NotKind, B::AndKind) = !B.a ∪ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∩ B.b
-issubset(A::OrKind,  B::NotKind) = B.a ⊆ !A.a ∩ !A.b # <== A.a ∪ A.b ⊆ !B.a
-issubset(A::NotKind, B::OrKind)  = !B.a ∩ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∪ B.b
+@ctx A::AndKind ⊆ B::NotKind = B.a ⊆ !A.a ∪ !A.b # <== A.a ∩ A.b ⊆ !B.a
+@ctx A::NotKind ⊆ B::AndKind = !B.a ∪ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∩ B.b
+@ctx A::OrKind  ⊆ B::NotKind = B.a ⊆ !A.a ∩ !A.b # <== A.a ∪ A.b ⊆ !B.a
+@ctx A::NotKind ⊆ B::OrKind  = !B.a ∩ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∪ B.b
 
 
 
 
 #= Parametric kinds =#
 
-function iscompatible!(state, (key, val))
-	key ∈ keys(state) || (state[key] = val)
-	state[key] == val
+function iscompatible!(ctx, (key, val))
+	key ∈ keys(ctx) || (ctx[key] = val)
+	ctx[key] == val
 end
 
-function parametersagree!(state, A, B::KindVar)
-	B.lb ⊆ A ⊆ B.ub && iscompatible!(state, B => A)
+function parametersagree!(ctx, A, B::KindVar)
+	@ctx B.lb ⊆ A ⊆ B.ub && iscompatible!(ctx, B => A)
 end
-function parametersagree!(state, A::KindVar, B::KindVar)
-	A.lb ⊆ B.lb && A.ub ⊆ B.ub && iscompatible!(state, B => A)
+function parametersagree!(ctx, A::KindVar, B::KindVar)
+	@ctx A.lb ⊆ B.lb && A.ub ⊆ B.ub && iscompatible!(ctx, B => A)
 end
-function parametersagree!(state, A::Kind, B::Kind)
+function parametersagree!(ctx, A::Kind, B::Kind)
 	A.name === B.name && length(A.parameters) === length(B.parameters) || return false
 	for (a, b) in zip(A.parameters, B.parameters)
-		parametersagree!(state, a, b) || return false
+		parametersagree!(ctx, a, b) || return false
 	end
 	true
 end
-parametersagree!(state, A::T, B::T) where T = A == B
-parametersagree!(state, A, B) = false
+parametersagree!(ctx, A::T, B::T) where T = A == B
+parametersagree!(ctx, A, B) = false
 
 
-function issubset(A::Kind, B::Kind)
+function issubkind!(ctx, A::Kind, B::Kind)
 	(A === Bottom || B === Top) && return true
 	(A === Top || B === Bottom) && return false
 
-	parametersagree!(IdDict(), A, B) || superkind(A) ⊆ B
+	parametersagree!(ctx, A, B) || superkind(A) ⊆ B
 end
 
-issubset(A::Kinds, B::ParametricKind) = A ⊆ B.body
-issubset(A::ParametricKind, B::Kinds) = A.body ⊆ B
-issubset(A::ParametricKind, B::ParametricKind) = A.body ⊆ B.body
+issubkind!(ctx, A::Kinds, B::ParametricKind) = issubkind!(copy(ctx), A, B.body)
+issubkind!(ctx, A::ParametricKind, B::Kinds) = issubkind!(copy(ctx), A.body, B)
+issubkind!(ctx, A::ParametricKind, B::ParametricKind) = issubkind!(copy(ctx), A.body, B.body)
 
+issubkind!(ctx, A::OrKind, B::ParametricKind) = issubkind!(copy(ctx), A.a, B.body) && issubkind!(copy(ctx), A.b, B.body)

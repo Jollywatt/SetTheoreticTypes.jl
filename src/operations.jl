@@ -1,5 +1,8 @@
-superkind(A::Kind) = A === Top ? Top : A.super
-
+superkind(A::Kind)  = A === Top ? Top : A.super
+function superkinds(A::Kind)
+	S = superkind(A)
+	A === S ? (A,) : (A, superkinds(S)...)
+end
 
 substitute(A::KindVar, (from, to)::Pair{KindVar}) = A === from ? to : A
 substitute(A, _) = A
@@ -30,17 +33,13 @@ apply_kind(A, B, C...) = apply_kind(apply_kind(A, B), C...)
 
 
 
-isconcretekind(A::Kind) = A.isconcrete && !any(p -> p isa KindVar, A.parameters)
-isconcretekind(A::AndKind) = false
-isconcretekind(A::OrKind)  = false
-isconcretekind(A::NotKind) = false
-
-
 
 
 function Base.getindex(A::Kinds, B...)
 	apply_kind(A, B...)
 end
+
+Base.issubset(A::Kinds, B::Kinds) = issubkind!(IdDict(), A, B)
 
 Base.union(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = OrKind(A, B)
 Base.intersect(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = AndKind(A, B)
