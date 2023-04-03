@@ -1,4 +1,8 @@
+superkind(A::Kind) = A === Top ? Top : A.super
+
+
 substitute(A::KindVar, (from, to)::Pair{KindVar}) = A === from ? to : A
+substitute(A, _) = A
 
 function substitute(A::Kind, (from, to)::Pair{KindVar})
 	(A === Bottom || A === Top) && return A
@@ -9,11 +13,13 @@ function substitute(A::Kind, (from, to)::Pair{KindVar})
 
 	Kind(A.name, substitute(A.super, from => to), parameters, A.isconcrete)
 end
-
 function substitute(A::ParametricKind, (from, to)::Pair{KindVar})
 	body = substitute(A.body, from => to)
-	A.var === from ? body : ParametricKind(body, A.var)
+	A.var === from ? body : ParametricKind(A.var, body)
 end
+substitute(A::AndKind, sub) = AndKind(substitute(A.a, sub), substitute(A.b, sub))
+substitute(A::OrKind, sub) = OrKind(substitute(A.a, sub), substitute(A.b, sub))
+substitute(A::NotKind, sub) = NotKind(substitute(A.a, sub))
 
 apply_kind(A) = A
 apply_kind(A::ParametricKind, B) = substitute(A, A.var => B)
@@ -21,7 +27,6 @@ apply_kind(A, B) = error("Cannot apply $B to kind $A: no free parameters.")
 apply_kind(A, B, C...) = apply_kind(apply_kind(A, B), C...)
 
 
-Kinds = Union{Kind,ParametricKind,OrKind,AndKind,NotKind}
 
 
 

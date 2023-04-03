@@ -10,7 +10,7 @@ export superkind, isconcretekind
 """
 	Kind(name, super, parameters, isconcrete)
 
-Set-theoretic kind-type, analogue of `Core.Type`.
+Set-theoretic kind-type, analogous to `Core.Type`.
 """
 struct Kind
 	name::Symbol
@@ -22,7 +22,7 @@ end
 """
 	KindVar(name, lb, ub)
 
-Kind-type variable, analogue of `Core.TypeVar`.
+Kind-type variable, analogous to `Core.TypeVar`.
 """
 struct KindVar
 	name::Symbol
@@ -34,7 +34,7 @@ KindVar(name) = KindVar(name, Bottom, Top)
 """
 	ParametricKind(var, body)
 
-Parametric kind-type, analogue of `Core.UnionAll`.
+Parametric kind-type, analogous to `Core.UnionAll`.
 """
 struct ParametricKind
 	var
@@ -45,7 +45,7 @@ end
 """
 	OrKind(a, b)
 
-Set-theoretic union kind-type, analogue of `Core.Union`.
+Set-theoretic union kind-type, analogous to `Core.Union`.
 """
 struct OrKind
 	a
@@ -58,11 +58,14 @@ struct OrKind
 	end
 end
 
+# distribute over or (like UnionAll distributing over Union)
+ParametricKind(var, A::OrKind) = ParametricKind(var, A.a) ∪ ParametricKind(var, A.b)
+
 """
 	AndKind(a, b)
 
 Set-theoretic intersection kind-type, dual to `OrKind`.
-Has no analogue in base Julia.
+Has no analogoue in base Julia.
 """
 struct AndKind
 	a
@@ -79,7 +82,7 @@ end
 	NotKind(a)
 
 Set-theoretic complement kind-type.
-Has no analogue in base Julia.
+Has no analogoue in base Julia.
 """
 struct NotKind
 	a
@@ -88,6 +91,8 @@ struct NotKind
 	NotKind(A::OrKind)  = AndKind(!A.a, !A.b)
 	NotKind(A::AndKind) = OrKind(!A.a, !A.b)
 end
+
+const Kinds = Union{Kind,ParametricKind,OrKind,AndKind,NotKind}
 
 const Top = Kind(:Top, nothing, [], false)
 const Bottom = NotKind(Top)

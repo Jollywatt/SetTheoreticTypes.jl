@@ -57,7 +57,8 @@ end
 
 	#= Kind-space diagram
 	Each point is a concrete kind; non-concrete kinds are subsets.
-	Even though concrete kinds are “points”, they are sets of instances (values of that kind).
+	Concrete kinds cannot have subkinds, and hence can be thought of
+	as points or singleton sets which have only one subkind: themselves.
 	┌─────────────── Top ──────────────┐
 	│  ┌────── A ────────┐             │
 	│  │  ·α      ┌──────┼─── B ────┐  │
@@ -65,6 +66,8 @@ end
 	│  └──────────┼──────┘    ·β    │  │
 	│             └─────────────────┘  │
 	└──────────────────────────────────┘
+	Note that concrete kinds may be thought of as sets of values,
+	even though in these diagrams they appear as points.
 	=#
 
 	@test !!A === A
@@ -140,17 +143,17 @@ end
 
 @testset "parametric kinds" begin
 
+	Number′ = Kind(:Number, Top, [], false)
+	Real′ = Kind(:Real, Number′, [], false)
+	Integer′ = Kind(:Integer, Real′, [], false)
+
+	Int′ = Kind(:Int, Integer′, [], true)
+	Bool′ = Kind(:Bool, Integer′, [], true)
+	Complex′ = let T = KindVar(:T, Bottom, Real′)
+		ParametricKind(T, Kind(:Complex, Number′, [T], true))
+	end
+
 	@testset "mirroring simple number types" begin
-		Number′ = Kind(:Number, Top, [], false)
-		Real′ = Kind(:Real, Number′, [], false)
-		Integer′ = Kind(:Integer, Real′, [], false)
-
-		Int′ = Kind(:Int, Integer′, [], true)
-		Bool′ = Kind(:Bool, Integer′, [], true)
-		Complex′ = let T = KindVar(:T, Bottom, Real′)
-			ParametricKind(T, Kind(:Complex, Number′, [T], true))
-		end
-
 		@test Int <: Number
 		@test Int′ ⊆ Number′
 
@@ -219,6 +222,66 @@ end
 		end
 		
 	end
+
+
+	@testset "multiple parameters" begin
+		
+		T, D = KindVar.([:T, :D])
+
+		AbstractArray′ = ParametricKind(T, ParametricKind(D, Kind(:AbstractArray, Top, [T,D], false)))
+		DenseArray′ = ParametricKind(T, ParametricKind(D, Kind(:DenseArray, AbstractArray′[T,D], [T,D], false)))
+		Array′ = ParametricKind(T, ParametricKind(D, Kind(:Array, DenseArray′[T,D], [T,D], false)))
+
+		AbstractVector′ = ParametricKind(T, AbstractArray′[T,1])
+		DenseVector′ = ParametricKind(T, DenseArray′[T,1])
+		Vector′ = ParametricKind(T, Array′[T,1])
+
+		@test Vector{Int} <: AbstractVector{Int} <: AbstractArray{Int,1}
+		@test Vector′[Int′] ⊆ AbstractVector′[Int′] ⊆ AbstractArray′[Int′,1]
+
+		@test Vector{Int} <: Array{T,1} where T
+		@test Vector′[Int′] ⊆ ParametricKind(T, Array′[T,1])
+
+		@test Union{Complex,Vector} <: Union{Complex{T},Vector{T}} where T
+		@test Complex′ ∪ Vector′ ⊆ ParametricKind(T, Complex′[T] ∪ Vector′[T])
+
+		A, B = KindVar.([:A, :B])
+
+		Pair′ = ParametricKind(A, ParametricKind(B, Kind(:Pair, Top, [A, B], true)))
+
+		@test !(Pair{Int,Bool} <: Pair{T,T} where T)
+		@test Pair′[Int′,Bool′] ⊈ ParametricKind(T, Pair′[T,T])
+
+		@test Union{Complex{Int},Vector{Bool}} <: Union{Complex{T},Vector{T}} where T
+		@test Complex′[Int′] ∪ Vector′[Bool′] ⊆ ParametricKind(T, Complex′[T] ∪ Vector′[T])
+
+		@test Union{Vector{Int},Vector{Bool}} <: Vector{<:Union{Int,Bool}}
+		@test let T = KindVar(:T, Bottom, Int′ ∪ Bool′)
+			Vector′[Int′] ∪ Vector′[Bool′] ⊆ ParametricKind(T, Vector′[T])
+		end
+
+	end
+
+	@testset "intersections and complements" begin
+		
+		T = KindVar(:T)
+
+		A = Kind(:A, Top, [], false)
+		B = Kind(:B, Top, [], false)
+
+		P = ParametricKind(T, Kind(:P, Top, [T], false))
+		Q = ParametricKind(T, Kind(:Q, Top, [T], false))
+
+		P2 = let T1 = KindVar(:T1), T2 = KindVar(:T2)
+			ParametricKind(T1, ParametricKind(T2, Kind(:P2, Top, [T1, T2], false)))
+		end
+
+
+		@test P[A] ∪ Q[B] ⊆ ParametricKind(T, P[T] ∪ Q[T])
+		@test_broken P[A] ∩ Q[B] ⊈ ParametricKind(T, P[T] ∩ Q[T])
+
+	end
 end
+
 
 nothing
