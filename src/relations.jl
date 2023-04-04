@@ -12,19 +12,19 @@ With the macro `@ctx`, this becomes:
 which is a little easier.
 =#
 
-@ctx A::Kind    ⊆ B::OrKind  = A ⊆ B.a || A ⊆ B.b
-@ctx A::OrKind  ⊆ B::Kind    = A.a ⊆ B && A.b ⊆ B
-@ctx A::OrKind  ⊆ B::OrKind  = A.a ⊆ B && A.b ⊆ B
+@ctx A::Kind       ⊆ B::UnionKind  = A ⊆ B.a || A ⊆ B.b
+@ctx A::UnionKind  ⊆ B::Kind       = A.a ⊆ B && A.b ⊆ B
+@ctx A::UnionKind  ⊆ B::UnionKind  = A.a ⊆ B && A.b ⊆ B
 
-@ctx A::AndKind ⊆ B::Kind    = A.a ⊆ B || A.b ⊆ B
-@ctx A::Kind    ⊆ B::AndKind = A ⊆ B.a && A ⊆ B.b
-@ctx A::AndKind ⊆ B::AndKind = A ⊆ B.a && A ⊆ B.b
+@ctx A::IntersectionKind ⊆ B::Kind             = A.a ⊆ B || A.b ⊆ B
+@ctx A::Kind             ⊆ B::IntersectionKind = A ⊆ B.a && A ⊆ B.b
+@ctx A::IntersectionKind ⊆ B::IntersectionKind = A ⊆ B.a && A ⊆ B.b
 
-@ctx A::OrKind  ⊆ B::AndKind = A ⊆ B.a && A ⊆ B.b
-@ctx A::AndKind ⊆ B::OrKind  = A ⊆ B.a || A ⊆ B.b
+@ctx A::UnionKind  ⊆ B::IntersectionKind = A ⊆ B.a && A ⊆ B.b
+@ctx A::IntersectionKind ⊆ B::UnionKind  = A ⊆ B.a || A ⊆ B.b
 
 
-function issubkind!(ctx, A::Kind, B::NotKind)
+function issubkind!(ctx, A::Kind, B::ComplementKind)
 	A !== Bottom === B && return false
 	A === Top !== B && return false
 
@@ -43,15 +43,15 @@ function issubkind!(ctx, A::Kind, B::NotKind)
 	false
 end
 
-@ctx A::NotKind ⊆ B::Kind = A === Bottom || B === Top # sus
-@ctx A::NotKind ⊆ B::NotKind = B.a ⊆ A.a # <== !A.a ⊆ !B.a
+@ctx A::ComplementKind ⊆ B::Kind = A === Bottom || B === Top # sus
+@ctx A::ComplementKind ⊆ B::ComplementKind = B.a ⊆ A.a # <== !A.a ⊆ !B.a
 
 
 # Derived from De Morgan’s laws
-@ctx A::AndKind ⊆ B::NotKind = B.a ⊆ !A.a ∪ !A.b # <== A.a ∩ A.b ⊆ !B.a
-@ctx A::NotKind ⊆ B::AndKind = !B.a ∪ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∩ B.b
-@ctx A::OrKind  ⊆ B::NotKind = B.a ⊆ !A.a ∩ !A.b # <== A.a ∪ A.b ⊆ !B.a
-@ctx A::NotKind ⊆ B::OrKind  = !B.a ∩ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∪ B.b
+@ctx A::IntersectionKind ⊆ B::ComplementKind   = B.a ⊆ !A.a ∪ !A.b # <== A.a ∩ A.b ⊆ !B.a
+@ctx A::ComplementKind   ⊆ B::IntersectionKind = !B.a ∪ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∩ B.b
+@ctx A::UnionKind        ⊆ B::ComplementKind   = B.a ⊆ !A.a ∩ !A.b # <== A.a ∪ A.b ⊆ !B.a
+@ctx A::ComplementKind   ⊆ B::UnionKind        = !B.a ∩ !B.b ⊆ A.a # <== !A.a ⊆ B.a ∪ B.b
 
 
 
@@ -87,8 +87,8 @@ function issubkind!(ctx, A::Kind, B::Kind)
 	parametersagree!(ctx, A, B) || superkind(A) ⊆ B
 end
 
-issubkind!(ctx, A::Kinds, B::ParametricKind) = issubkind!(copy(ctx), A, B.body)
-issubkind!(ctx, A::ParametricKind, B::Kinds) = issubkind!(copy(ctx), A.body, B)
-issubkind!(ctx, A::ParametricKind, B::ParametricKind) = issubkind!(copy(ctx), A.body, B.body)
+issubkind!(ctx, A::Kinds,        B::UnionAllKind) = issubkind!(copy(ctx), A, B.body)
+issubkind!(ctx, A::UnionAllKind, B::Kinds)        = issubkind!(copy(ctx), A.body, B)
+issubkind!(ctx, A::UnionAllKind, B::UnionAllKind) = issubkind!(copy(ctx), A.body, B.body)
 
-issubkind!(ctx, A::OrKind, B::ParametricKind) = issubkind!(copy(ctx), A.a, B.body) && issubkind!(copy(ctx), A.b, B.body)
+issubkind!(ctx, A::UnionKind, B::UnionAllKind) = issubkind!(copy(ctx), A.a, B.body) && issubkind!(copy(ctx), A.b, B.body)

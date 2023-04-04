@@ -82,6 +82,7 @@ end
 	@test α ⊆ !B
 	@test B ⊆ !α
 	@test γ ⊈ !A ∪ !B
+	
 
 	@test !(A ∪ B) == !A ∩ !B
 	@test !(A ∩ B) == !A ∪ !B
@@ -155,7 +156,7 @@ end
 	Int′     = Kind(:Int,     Signed′,  [], true)
 	Bool′    = Kind(:Bool,    Integer′, [], true)
 	Complex′ = let T = KindVar(:T, Bottom, Real′)
-		ParametricKind(T, Kind(:Complex, Number′, [T], true))
+		UnionAllKind(T, Kind(:Complex, Number′, [T], true))
 	end
 
 	@test Int <: Signed <: Integer <: Real <: Number <: Any
@@ -176,7 +177,7 @@ end
 
 		@test Complex{Union{Bool,Int}} <: Complex{<:Integer}
 		@test let T = KindVar(:T, Bottom, Integer′)
-			Complex′[Bool′ ∪ Int′] ⊆ ParametricKind(T, Complex′[T])
+			Complex′[Bool′ ∪ Int′] ⊆ UnionAllKind(T, Complex′[T])
 		end
 
 		@test isconcretetype(Complex{Int})
@@ -187,10 +188,10 @@ end
 		X = KindVar(:X)
 
 		abstract type Boxlike{T} end
-		Boxlike′ = ParametricKind(X, Kind(:Boxlike, Top, [X], false))
+		Boxlike′ = UnionAllKind(X, Kind(:Boxlike, Top, [X], false))
 
 		struct Box{T} <: Boxlike{T} end
-		Box′ = ParametricKind(X, Kind(:Box, Boxlike′[X], [X], true))
+		Box′ = UnionAllKind(X, Kind(:Box, Boxlike′[X], [X], true))
 
 		abstract type Animal end
 		Animal′ = Kind(:Animal, Top, [], false)
@@ -214,19 +215,19 @@ end
 		@test Box′[Cat′] ⊈ Box′[Animal′]
 
 		Y = KindVar(:Y, Bottom, Animal′)
-		@test Box′[Cat′] ⊆ ParametricKind(Y, Box′[Y])
+		@test Box′[Cat′] ⊆ UnionAllKind(Y, Box′[Y])
 
 		@test !(Box{Box{Cat}} <: Box{Box})
 		@test Box′[Box′[Cat′]] ⊈ Box′[Box′]
 		
 		@test Box{Box{Cat}} <: Box{Box{T}} where T
 		@test let T = KindVar(:T)
-			Box′[Box′[Cat′]] ⊆ ParametricKind(T, Box′[Box′[T]])
+			Box′[Box′[Cat′]] ⊆ UnionAllKind(T, Box′[Box′[T]])
 		end
 
 		@test !(Box{Cat} <: Box{>:Animal})
 		@test let T = KindVar(:T, Animal′, Top)
-			Box′[Cat′] ⊈ ParametricKind(T, Box′[T])
+			Box′[Cat′] ⊈ UnionAllKind(T, Box′[T])
 		end
 		
 	end
@@ -236,35 +237,35 @@ end
 		
 		T, D = KindVar.([:T, :D])
 
-		AbstractArray′ = ParametricKind(T, ParametricKind(D, Kind(:AbstractArray, Top, [T,D], false)))
-		DenseArray′    = ParametricKind(T, ParametricKind(D, Kind(:DenseArray, AbstractArray′[T,D], [T,D], false)))
-		Array′         = ParametricKind(T, ParametricKind(D, Kind(:Array, DenseArray′[T,D], [T,D], false)))
+		AbstractArray′ = UnionAllKind(T, UnionAllKind(D, Kind(:AbstractArray, Top, [T,D], false)))
+		DenseArray′    = UnionAllKind(T, UnionAllKind(D, Kind(:DenseArray, AbstractArray′[T,D], [T,D], false)))
+		Array′         = UnionAllKind(T, UnionAllKind(D, Kind(:Array, DenseArray′[T,D], [T,D], false)))
 
-		AbstractVector′ = ParametricKind(T, AbstractArray′[T,1])
-		DenseVector′    = ParametricKind(T, DenseArray′[T,1])
-		Vector′         = ParametricKind(T, Array′[T,1])
+		AbstractVector′ = UnionAllKind(T, AbstractArray′[T,1])
+		DenseVector′    = UnionAllKind(T, DenseArray′[T,1])
+		Vector′         = UnionAllKind(T, Array′[T,1])
 
 		@test Vector{Int} <: AbstractVector{Int} <: AbstractArray{Int,1}
 		@test Vector′[Int′] ⊆ AbstractVector′[Int′] ⊆ AbstractArray′[Int′,1]
 
 		@test Vector{Int} <: Array{T,1} where T
-		@test Vector′[Int′] ⊆ ParametricKind(T, Array′[T,1])
+		@test Vector′[Int′] ⊆ UnionAllKind(T, Array′[T,1])
 
 		@test Union{Complex,Vector} <: Union{Complex{T},Vector{T}} where T
-		@test Complex′ ∪ Vector′ ⊆ ParametricKind(T, Complex′[T] ∪ Vector′[T])
+		@test Complex′ ∪ Vector′ ⊆ UnionAllKind(T, Complex′[T] ∪ Vector′[T])
 
 		A, B = KindVar.([:A, :B])
-		Pair′ = ParametricKind(A, ParametricKind(B, Kind(:Pair, Top, [A, B], true)))
+		Pair′ = UnionAllKind(A, UnionAllKind(B, Kind(:Pair, Top, [A, B], true)))
 
 		@test !(Pair{Int,Bool} <: Pair{T,T} where T)
-		@test Pair′[Int′,Bool′] ⊈ ParametricKind(T, Pair′[T,T])
+		@test Pair′[Int′,Bool′] ⊈ UnionAllKind(T, Pair′[T,T])
 
 		@test Union{Complex{Int},Vector{Bool}} <: Union{Complex{T},Vector{T}} where T
-		@test Complex′[Int′] ∪ Vector′[Bool′] ⊆ ParametricKind(T, Complex′[T] ∪ Vector′[T])
+		@test Complex′[Int′] ∪ Vector′[Bool′] ⊆ UnionAllKind(T, Complex′[T] ∪ Vector′[T])
 
 		@test Union{Vector{Int},Vector{Bool}} <: Vector{<:Union{Int,Bool}}
 		@test let T = KindVar(:T, Bottom, Int′ ∪ Bool′)
-			Vector′[Int′] ∪ Vector′[Bool′] ⊆ ParametricKind(T, Vector′[T])
+			Vector′[Int′] ∪ Vector′[Bool′] ⊆ UnionAllKind(T, Vector′[T])
 		end
 
 	end
@@ -276,42 +277,42 @@ end
 		A = Kind(:A, Top, [], false)
 		B = Kind(:B, Top, [], false)
 
-		P = ParametricKind(T, Kind(:P, Top, [T], false))
-		Q = ParametricKind(T, Kind(:Q, Top, [T], false))
-		P2 = ParametricKind(T, ParametricKind(S, Kind(:P2, Top, [T, S], false)))
+		P = UnionAllKind(T, Kind(:P, Top, [T], false))
+		Q = UnionAllKind(T, Kind(:Q, Top, [T], false))
+		P2 = UnionAllKind(T, UnionAllKind(S, Kind(:P2, Top, [T, S], false)))
 
-		@test P[A] ∪ P[B] ⊆ ParametricKind(T, P[T])
-		@test P[A] ∩ P[B] ⊆ ParametricKind(T, P[T])
+		@test P[A] ∪ P[B] ⊆ UnionAllKind(T, P[T])
+		@test P[A] ∩ P[B] ⊆ UnionAllKind(T, P[T])
 
-		@test P[A] ∪ Q[B] ⊆ ParametricKind(T, P[T] ∪ Q[T])
-		@test P[A] ∩ Q[B] ⊈ ParametricKind(T, P[T] ∩ Q[T])
+		@test P[A] ∪ Q[B] ⊆ UnionAllKind(T, P[T] ∪ Q[T])
+		@test P[A] ∩ Q[B] ⊈ UnionAllKind(T, P[T] ∩ Q[T])
 
-		@test P2[A,B] ⊈ ParametricKind(T, P2[T,T])
+		@test P2[A,B] ⊈ UnionAllKind(T, P2[T,T])
 
 		@test (Pair{T,T} where T) <: Pair{T,S} where T where S
-		@test ParametricKind(T, P2[T,T]) ⊆ ParametricKind(T, ParametricKind(S, P2[T,S]))
+		@test UnionAllKind(T, P2[T,T]) ⊆ UnionAllKind(T, UnionAllKind(S, P2[T,S]))
 
-		@test P2[A,B] ⊈ ParametricKind(T, P2[T,T])
+		@test P2[A,B] ⊈ UnionAllKind(T, P2[T,T])
 
 		# Ok, this one requires explanation:
-		@test P2[A,B] ⊈ !ParametricKind(T, P2[T,T])
+		@test P2[A,B] ⊈ !UnionAllKind(T, P2[T,T])
 		# We don’t expect P2[A,B] ⊆ !(P2[T, T] where T)
 		# because P2[A,B] is not a concrete kind, and
 		# hence the intersection
-		@test P2[A,B] ∩ ParametricKind(T, P2[T,T]) !== Bottom
+		@test P2[A,B] ∩ UnionAllKind(T, P2[T,T]) !== Bottom
 		# is not empty. Indeed, we can directly construct a kind
 		Weird = Kind(:Weird, P2[A,B] ∩ P2[A,A], [], false)
 		# which is a subset of this intersection:
 		@test Weird ⊆ P2[A,B]
-		@test Weird ⊆ ParametricKind(T, P2[T,T])
-		@test Weird ⊆ P2[A,B] ∩ ParametricKind(T, P2[T,T])
+		@test Weird ⊆ UnionAllKind(T, P2[T,T])
+		@test Weird ⊆ P2[A,B] ∩ UnionAllKind(T, P2[T,T])
 
 		# This changes with concrete kinds, however.
-		π2 = ParametricKind(T, ParametricKind(S, Kind(:π2, Top, [T, S], true)))
+		π2 = UnionAllKind(T, UnionAllKind(S, Kind(:π2, Top, [T, S], true)))
 		# Now, we have
-		@test π2[A,B] ⊆ !ParametricKind(T, π2[T,T])
+		@test π2[A,B] ⊆ !UnionAllKind(T, π2[T,T])
 		# because the intersection
-		@test π2[A,B] ∩ ParametricKind(T, π2[T,T]) === Bottom
+		@test π2[A,B] ∩ UnionAllKind(T, π2[T,T]) === Bottom
 		# is indeed empty.
 	end
 end

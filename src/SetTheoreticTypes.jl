@@ -1,6 +1,6 @@
 module SetTheoreticTypes
 
-export Kind, KindVar, ParametricKind, OrKind, AndKind, NotKind
+export Kind, KindVar, UnionAllKind, UnionKind, IntersectionKind, ComplementKind
 export Top, Bottom
 
 export superkind, superkinds, isconcretekind
@@ -36,25 +36,25 @@ end
 KindVar(name) = KindVar(name, Bottom, Top)
 
 """
-	ParametricKind(var, body)
+	UnionAllKind(var, body)
 
 Parametric kind-type, analogous to `Core.UnionAll`.
 """
-struct ParametricKind
-	var
+struct UnionAllKind
+	var::KindVar
 	body
 end
 
 
 """
-	OrKind(a, b)
+	UnionKind(a, b)
 
 Set-theoretic union kind-type, analogous to `Core.Union`.
 """
-struct OrKind
+struct UnionKind
 	a
 	b
-	function OrKind(A, B)
+	function UnionKind(A, B)
 		A ⊆ B && return B
 		A ⊇ B && return A
 		!A ⊆ B && return Top
@@ -63,18 +63,18 @@ struct OrKind
 end
 
 # distribute over or (like UnionAll distributing over Union)
-# ParametricKind(var, A::OrKind) = ParametricKind(var, A.a) ∪ ParametricKind(var, A.b)
+# UnionAllKind(var, A::UnionKind) = UnionAllKind(var, A.a) ∪ UnionAllKind(var, A.b)
 
 """
-	AndKind(a, b)
+	IntersectionKind(a, b)
 
-Set-theoretic intersection kind-type, dual to `OrKind`.
+Set-theoretic intersection kind-type, dual to `UnionKind`.
 Has no analogoue in base Julia.
 """
-struct AndKind
+struct IntersectionKind
 	a
 	b
-	function AndKind(A, B)
+	function IntersectionKind(A, B)
 		A ⊆ B && return A
 		A ⊇ B && return B
 		A ⊆ !B && return Bottom
@@ -83,29 +83,29 @@ struct AndKind
 end
 
 """
-	NotKind(a)
+	ComplementKind(a)
 
 Set-theoretic complement kind-type.
 Has no analogoue in base Julia.
 """
-struct NotKind
+struct ComplementKind
 	a
-	NotKind(A) = new(A)	
-	NotKind(A::NotKind) = A.a
-	NotKind(A::OrKind)  = AndKind(!A.a, !A.b)
-	NotKind(A::AndKind) = OrKind(!A.a, !A.b)
+	ComplementKind(A) = new(A)	
+	ComplementKind(A::ComplementKind) = A.a
+	ComplementKind(A::UnionKind) = IntersectionKind(!A.a, !A.b)
+	ComplementKind(A::IntersectionKind) = UnionKind(!A.a, !A.b)
 end
 
 isconcretekind(A::Kind) = A.isconcrete && !any(p -> p isa KindVar, A.parameters)
-isconcretekind(A::ParametricKind) = false
-isconcretekind(A::OrKind)  = false
-isconcretekind(A::AndKind) = false
-isconcretekind(A::NotKind) = false
+isconcretekind(A::UnionAllKind) = false
+isconcretekind(A::UnionKind) = false
+isconcretekind(A::IntersectionKind) = false
+isconcretekind(A::ComplementKind) = false
 
-const Kinds = Union{Kind,ParametricKind,OrKind,AndKind,NotKind}
+const Kinds = Union{Kind,UnionAllKind,UnionKind,IntersectionKind,ComplementKind}
 
 const Top = Kind(:Top, nothing, [], false)
-const Bottom = NotKind(Top)
+const Bottom = ComplementKind(Top)
 
 
 include("utils.jl")

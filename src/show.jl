@@ -1,4 +1,4 @@
-function Base.show(io::IO, K::Union{Kind,KindVar,ParametricKind,OrKind,AndKind,NotKind})
+function Base.show(io::IO, K::Union{Kind,KindVar,UnionAllKind,UnionKind,IntersectionKind,ComplementKind})
 	Base.show_unquoted(io, toexpr(K))
 end
 
@@ -31,7 +31,7 @@ function toexpr(K::KindVar)
 		:( $(K.lb) ⊆ $expr ⊆ $(K.ub) )
 	end
 end
-toexpr(K::ParametricKind) = :( $(toexpr(K.body)) where $(toexpr(K.var)) )
-toexpr(K::OrKind)  = :( $(toexpr(K.a)) ∪ $(toexpr(K.b)) )
-toexpr(K::AndKind) = :( $(toexpr(K.a)) ∩ $(toexpr(K.b)) )
-toexpr(K::NotKind) = :( !$(toexpr(K.a)) )
+toexpr(K::UnionAllKind) = :( $(toexpr(K.body)) where $(toexpr(K.var)) )
+toexpr(K::UnionKind) = :( $(toexpr(K.a)) ∪ $(toexpr(K.b)) )
+toexpr(K::IntersectionKind) = :( $(toexpr(K.a)) ∩ $(toexpr(K.b)) )
+toexpr(K::ComplementKind) = :( !$(toexpr(K.a)) )
