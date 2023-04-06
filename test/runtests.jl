@@ -57,7 +57,7 @@ end
 
 	#= Kind-space diagram
 	Each point is a concrete kind; non-concrete kinds are shown as sets.
-	Concrete kinds cannot have subkinds, and hence can be thought of
+	Concrete kinds cannot have strict subkinds, and can be thought of
 	as points (or singleton sets) which contain only one kind: themselves.
 	┌─────────────── Top ──────────────┐
 	│  ┌────── A ────────┐             │
@@ -66,8 +66,8 @@ end
 	│  └──────────┼──────┘    ·β    │  │
 	│             └─────────────────┘  │
 	└──────────────────────────────────┘
-	Note that we usually think of both concrete and non-concrete types
-	as sets of point-like values or instances. Here, we are thinking of
+	Note that we usually think of concrete types as sets of
+	point-like values or instances. Here, we are thinking of
 	non-concrete kinds as sets of point-like concrete kinds.
 	=#
 
@@ -82,7 +82,7 @@ end
 	@test α ⊆ !B
 	@test B ⊆ !α
 	@test γ ⊈ !A ∪ !B
-	
+	@test α ∪ β ⊆ A ∪ B
 
 	@test !(A ∪ B) == !A ∩ !B
 	@test !(A ∩ B) == !A ∪ !B
@@ -279,7 +279,7 @@ end
 
 		P = UnionAllKind(T, Kind(:P, Top, [T], false))
 		Q = UnionAllKind(T, Kind(:Q, Top, [T], false))
-		P2 = UnionAllKind(T, UnionAllKind(S, Kind(:P2, Top, [T, S], false)))
+		R = UnionAllKind(T, UnionAllKind(S, Kind(:R, Top, [T, S], false)))
 
 		@test P[A] ∪ P[B] ⊆ UnionAllKind(T, P[T])
 		@test P[A] ∩ P[B] ⊆ UnionAllKind(T, P[T])
@@ -287,32 +287,32 @@ end
 		@test P[A] ∪ Q[B] ⊆ UnionAllKind(T, P[T] ∪ Q[T])
 		@test P[A] ∩ Q[B] ⊈ UnionAllKind(T, P[T] ∩ Q[T])
 
-		@test P2[A,B] ⊈ UnionAllKind(T, P2[T,T])
+		@test R[A,B] ⊈ UnionAllKind(T, R[T,T])
 
 		@test (Pair{T,T} where T) <: Pair{T,S} where T where S
-		@test UnionAllKind(T, P2[T,T]) ⊆ UnionAllKind(T, UnionAllKind(S, P2[T,S]))
+		@test UnionAllKind(T, R[T,T]) ⊆ UnionAllKind(T, UnionAllKind(S, R[T,S]))
 
-		@test P2[A,B] ⊈ UnionAllKind(T, P2[T,T])
+		@test R[A,B] ⊈ UnionAllKind(T, R[T,T])
 
 		# Ok, this one requires explanation:
-		@test P2[A,B] ⊈ !UnionAllKind(T, P2[T,T])
-		# We don’t expect P2[A,B] ⊆ !(P2[T, T] where T)
-		# because P2[A,B] is not a concrete kind, and
+		@test R[A,B] ⊈ !UnionAllKind(T, R[T,T])
+		# We don’t expect R[A,B] ⊆ !(R[T, T] where T)
+		# because R[A,B] is not a concrete kind, and
 		# hence the intersection
-		@test P2[A,B] ∩ UnionAllKind(T, P2[T,T]) !== Bottom
+		@test R[A,B] ∩ UnionAllKind(T, R[T,T]) !== Bottom
 		# is not empty. Indeed, we can directly construct a kind
-		Weird = Kind(:Weird, P2[A,B] ∩ P2[A,A], [], false)
+		Weird = Kind(:Weird, R[A,B] ∩ R[A,A], [], false)
 		# which is a subset of this intersection:
-		@test Weird ⊆ P2[A,B]
-		@test Weird ⊆ UnionAllKind(T, P2[T,T])
-		@test Weird ⊆ P2[A,B] ∩ UnionAllKind(T, P2[T,T])
+		@test Weird ⊆ R[A,B]
+		@test Weird ⊆ UnionAllKind(T, R[T,T])
+		@test Weird ⊆ R[A,B] ∩ UnionAllKind(T, R[T,T])
 
 		# This changes with concrete kinds, however.
-		π2 = UnionAllKind(T, UnionAllKind(S, Kind(:π2, Top, [T, S], true)))
+		ρ = UnionAllKind(T, UnionAllKind(S, Kind(:ρ, Top, [T, S], true)))
 		# Now, we have
-		@test π2[A,B] ⊆ !UnionAllKind(T, π2[T,T])
+		@test ρ[A,B] ⊆ !UnionAllKind(T, ρ[T,T])
 		# because the intersection
-		@test π2[A,B] ∩ UnionAllKind(T, π2[T,T]) === Bottom
+		@test ρ[A,B] ∩ UnionAllKind(T, ρ[T,T]) === Bottom
 		# is indeed empty.
 	end
 end

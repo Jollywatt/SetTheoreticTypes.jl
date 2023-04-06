@@ -5,9 +5,7 @@ postwalk(f, e) = f(e)
 macro ctx(expr)
 	transforms = Dict(
 		:⊆ => (a, b) -> :( issubkind!(ctx, $a, $b) ),
-		:⊈ => (a, b) -> :(!issubkind!(ctx, $a, $b) ),
 		:⊇ => (a, b) -> :( issubkind!(ctx, $b, $a) ),
-		:⊉ => (a, b) -> :(!issubkind!(ctx, $b, $a) ),
 	)
 	postwalk(expr) do n
 		if n isa Expr && n.head == :call
@@ -22,5 +20,3 @@ macro ctx(expr)
 		end
 	end |> esc
 end
-
-export @ctx

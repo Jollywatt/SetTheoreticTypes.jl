@@ -5,6 +5,9 @@ export Top, Bottom
 
 export superkind, superkinds, isconcretekind
 
+export KindInstance, KindMethod, KindFunction
+export kindof
+
 """
 	Kind(name, super, parameters, isconcrete)
 
@@ -111,6 +114,7 @@ const Bottom = ComplementKind(Top)
 include("utils.jl")
 include("operations.jl")
 include("relations.jl")
+include("dispatch.jl")
 include("show.jl")
 
 
