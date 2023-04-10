@@ -1,5 +1,7 @@
 module SetTheoreticTypes
 
+using MacroTools
+
 export Kind, KindVar, UnionAllKind, UnionKind, IntersectionKind, ComplementKind
 export Top, Bottom
 
@@ -115,6 +117,7 @@ include("utils.jl")
 include("operations.jl")
 include("relations.jl")
 include("dispatch.jl")
+include("syntax.jl")
 include("show.jl")
 
 

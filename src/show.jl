@@ -4,23 +4,24 @@ struct DisplayWrapper
 end
 Base.show(io::IO, a::DisplayWrapper) = a.showfn(io, a.value)
 
-toexpr(a) = a
-function toexpr(K::Kind)
+toexpr(io, a) = a
+function toexpr(io, K::Kind)
 	name = K.name
 	expr = if isempty(K.parameters)
 		name
 	else
-		:( $name[$(toexpr.(K.parameters)...)] )
+		:( $name[$(toexpr.(io, K.parameters)...)] )
 	end
 	isconcretekind(K) || return expr
 	DisplayWrapper(expr) do io, x
 		printstyled(io, x, underline=true)
 	end
 end
-function toexpr(K::KindVar)
+function toexpr(io, K::KindVar)
 	expr = DisplayWrapper(K.name) do io, x
 		printstyled(io, x, bold=true)
 	end
+	K ∈ get(io, :kindvars, Set()) && return expr
 	if (K.lb, K.ub) === (Bottom, Top)
 		expr
 	elseif K.lb === Bottom
@@ -31,19 +32,24 @@ function toexpr(K::KindVar)
 		:( $(K.lb) ⊆ $expr ⊆ $(K.ub) )
 	end
 end
-# toexpr(K::UnionAllKind) = :( $(toexpr(K.body)) where $(toexpr(K.var)) )
-toexpr(K::UnionAllKind) = :( UnionAllKind($(toexpr(K.var)), $(toexpr(K.body))) )
-toexpr(K::UnionKind) = :( $(toexpr(K.a)) ∪ $(toexpr(K.b)) )
-toexpr(K::IntersectionKind) = :( $(toexpr(K.a)) ∩ $(toexpr(K.b)) )
-toexpr(K::ComplementKind) = :( !$(toexpr(K.a)) )
+function toexpr(io, K::UnionAllKind)
+	kindvars = get(io, :kindvars, Set{KindVar}())
+	push!(kindvars, K.var)
+	subio = IOContext(io, :kindvars=>kindvars)
+	:( $(toexpr(subio, K.body)) where $(toexpr(io, K.var)) )
+end
 
+# toexpr(io, K::UnionAllKind)   = :( UnionAllKind($(toexpr(io, K.var)), $(toexpr(io, K.body))) )
+toexpr(io, K::UnionKind)        = :( $(toexpr(io, K.a)) ∪ $(toexpr(io, K.b)) )
+toexpr(io, K::IntersectionKind) = :( $(toexpr(io, K.a)) ∩ $(toexpr(io, K.b)) )
+toexpr(io, K::ComplementKind)   = :( !$(toexpr(io, K.a)) )
 
 
 function Base.show(io::IO, K::Union{
 	Kind,KindVar,UnionAllKind,UnionKind,IntersectionKind,ComplementKind,
 	KindInstance,
 	})
-	Base.show_unquoted(io, toexpr(K))
+	Base.show_unquoted(io, toexpr(io, K))
 end
 
 
