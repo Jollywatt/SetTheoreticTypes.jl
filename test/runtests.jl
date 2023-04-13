@@ -56,9 +56,11 @@ end
 	γ = Kind(:γ, A ∩ B, [], true)
 
 	#= Kind-space diagram
-	Each point is a concrete kind; non-concrete kinds are shown as sets.
-	Concrete kinds cannot have strict subkinds, and can be thought of
-	as points (or singleton sets) which contain only one kind: themselves.
+	Each point (e.g., α, β, γ) is a concrete kind; non-concrete
+	kinds (e.g., A, B, Top) are shown as sets. Concrete kinds
+	cannot have strict subkinds (except Bottom, the empty set)
+	and therefore can be thought of as points (or singleton sets)
+	which contain only one kind: themselves.
 	┌─────────────── Top ──────────────┐
 	│  ┌────── A ────────┐             │
 	│  │  ·α      ┌──────┼─── B ────┐  │
@@ -161,6 +163,20 @@ end
 
 	@test Int <: Signed <: Integer <: Real <: Number <: Any
 	@test Int′ ⊆ Signed′ ⊆ Integer′ ⊆ Real′ ⊆ Number′ ⊆ Top
+
+	@testset "kind variables" begin
+		@test (X where X) == Any
+		@test @where(X, X) == Top
+
+		@test (X where X<:Real) == Real
+		@test @where(X, X ⊆ Real′) == Real′
+
+		@test (X where X>:Real) == Any
+		@test @where(X, X ⊇ Real′) == Top
+
+		@test Integer == Union{X,Y} where X<:Y where Y<:Integer
+		@test Integer′ ⊆ @where(@where(X ∩ Y, X ⊆ Y), Y ⊆ Integer′)
+	end
 
 	@testset "mirroring simple number types" begin
 		@test Int <: Number
@@ -268,6 +284,15 @@ end
 			Vector′[Int′] ∪ Vector′[Bool′] ⊆ UnionAllKind(T, Vector′[T])
 		end
 
+		@test Pair{Int,Number} <: Pair{X,Y} where X <: Y where Y
+		@test Pair′[Int′,Number′] ⊆ @where(@where(Pair′[X,Y], X ⊆ Y), Y)
+
+		@test Integer == Union{X,Y,Z} where X <: Y where Y <: Z where Z <: Integer
+		@test Integer′ == @where(@where(@where(X ∪ Y ∪ Z, X ⊆ Y), Y ⊆ Z), Z ⊆ Integer′)
+
+		@test Pair{Complex{Int},Integer} <: Pair{Complex{Sub},Sup} where Sub<:Sup where Sup
+		@test Pair′[Complex′[Int′],Integer′] ⊆ @where(@where(Pair′[Complex′[Sub],Sup], Sub ⊆ Sup), Sup)
+
 	end
 
 	@testset "intersections and complements" begin
@@ -296,7 +321,8 @@ end
 
 		# Ok, this one requires explanation:
 		@test R[A,B] ⊈ !UnionAllKind(T, R[T,T])
-		# We don’t expect R[A,B] ⊆ !(R[T, T] where T)
+		# We don’t expect R[A,B] ⊆ !(R[T,T] where T)
+		# even though R[A,B] ⊈ R[T,T] where T
 		# because R[A,B] is not a concrete kind, and
 		# hence the intersection
 		@test R[A,B] ∩ UnionAllKind(T, R[T,T]) !== Bottom

@@ -4,9 +4,10 @@ function superkinds(A::Kind)
 	A === S ? (A,) : (A, superkinds(S)...)
 end
 
-substitute(A::KindVar, (from, to)::Pair{KindVar}) = A === from ? to : A
-substitute(A, _) = A
-
+function substitute(A::KindVar, (from, to)::Pair{KindVar})
+	A === from && return to
+	KindVar(A.name, substitute(A.lb, from => to), substitute(A.ub, from => to))
+end
 function substitute(A::Kind, (from, to)::Pair{KindVar})
 	(A === Bottom || A === Top) && return A
 
@@ -18,11 +19,13 @@ function substitute(A::Kind, (from, to)::Pair{KindVar})
 end
 function substitute(A::UnionAllKind, (from, to)::Pair{KindVar})
 	body = substitute(A.body, from => to)
-	A.var === from ? body : UnionAllKind(A.var, body)
+	A.var === from && return body
+	UnionAllKind(substitute(A.var, from => to), body)
 end
 substitute(A::IntersectionKind, sub) = IntersectionKind(substitute(A.a, sub), substitute(A.b, sub))
 substitute(A::UnionKind, sub) = UnionKind(substitute(A.a, sub), substitute(A.b, sub))
 substitute(A::ComplementKind, sub) = ComplementKind(substitute(A.a, sub))
+substitute(A, _) = A
 
 apply_kind(A) = A
 apply_kind(A::UnionAllKind, B) = substitute(A, A.var => B)
@@ -39,7 +42,7 @@ function Base.getindex(A::Kinds, B...)
 	apply_kind(A, B...)
 end
 
-Base.issubset(A::Kinds, B::Kinds) = issubkind!(IdDict(), A, B)
+Base.issubset(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = issubkind!(IdDict(), A, B)
 
 Base.union(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = UnionKind(A, B)
 Base.intersect(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = IntersectionKind(A, B)

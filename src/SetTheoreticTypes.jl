@@ -10,6 +10,8 @@ export superkind, superkinds, isconcretekind
 export KindInstance, KindMethod, KindFunction
 export kindof
 
+export @stt, @where
+
 """
 	Kind(name, super, parameters, isconcrete)
 

@@ -2,7 +2,7 @@ function translate(expr)
 	MacroTools.prewalk(expr) do node
 		if false
 		elseif @capture(node, A_ where Ts__)
-			:(@where $A $(Ts...))
+			:(SetTheoreticTypes.@where $A $(Ts...))
 		elseif @capture(node, A_[params__])
 			new_params = translate_parameter.(params, false)
 			names, vars = zip(new_params...)
@@ -52,13 +52,13 @@ end
 macro where(body, var)
 	name, T = translate_parameter(var, true)
 	quote
-		let $(esc(name)) = $T
-			UnionAllKind($(esc(name)), $(esc(body)))
+		let $name = $T
+			UnionAllKind($name, $body)
 		end
-	end
+	end |> esc
 end
 macro where(body, var, vars...)
-	:(@where (@where $body $var) $(vars...)) |> esc
+	:(@where (@where $body $var) $(vars...))
 end
 
 

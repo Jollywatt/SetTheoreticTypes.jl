@@ -12,12 +12,14 @@ With the macro `@ctx`, this becomes:
 which is a little easier.
 =#
 
-@ctx A::Kind             ⊆ B::UnionKind        = A ⊆ B.a || A ⊆ B.b
-@ctx A::UnionKind        ⊆ B::Kind             = A.a ⊆ B && A.b ⊆ B
+SimpleKind = Union{Kind}
+
+@ctx A::SimpleKind       ⊆ B::UnionKind        = A ⊆ B.a || A ⊆ B.b
+@ctx A::UnionKind        ⊆ B::SimpleKind       = A.a ⊆ B && A.b ⊆ B
 @ctx A::UnionKind        ⊆ B::UnionKind        = A.a ⊆ B && A.b ⊆ B
 
-@ctx A::IntersectionKind ⊆ B::Kind             = A.a ⊆ B || A.b ⊆ B
-@ctx A::Kind             ⊆ B::IntersectionKind = A ⊆ B.a && A ⊆ B.b
+@ctx A::IntersectionKind ⊆ B::SimpleKind       = A.a ⊆ B || A.b ⊆ B
+@ctx A::SimpleKind       ⊆ B::IntersectionKind = A ⊆ B.a && A ⊆ B.b
 @ctx A::IntersectionKind ⊆ B::IntersectionKind = A ⊆ B.a && A ⊆ B.b
 
 @ctx A::UnionKind        ⊆ B::IntersectionKind = A ⊆ B.a && A ⊆ B.b
@@ -32,8 +34,8 @@ which is a little easier.
 
 
 @ctx A::ComplementKind   ⊆ B::ComplementKind   = B.a ⊆ A.a # <== !A.a ⊆ !B.a
-@ctx A::ComplementKind   ⊆ B::Kind             = A === Bottom || B === Top # sus
-function issubkind!(ctx, A::Kind, B::ComplementKind)
+@ctx A::ComplementKind   ⊆ B::SimpleKind       = A === Bottom || B === Top # sus
+function issubkind!(ctx, A::SimpleKind, B::ComplementKind)
 	A !== Bottom === B && return false
 	A === Top !== B && return false
 
@@ -44,7 +46,7 @@ function issubkind!(ctx, A::Kind, B::ComplementKind)
 	isconcretekind(B.a) && B.a ⊈ A && return true
 
 	# A ⊆ sup(A) && sup(A) ⊆ B ==> A ⊆ B
-	@ctx A.super ⊆ B && return true
+	@ctx superkind(A) ⊆ B && return true
 
 	# !B ⊆ sup(!B) && A ⊆ !sup(!B) ==> A ⊆ B
 	@ctx B.a isa Kind && A ⊆ !B.a.super && return true
@@ -55,37 +57,78 @@ end
 
 #= Parametric kinds =#
 
-function iscompatible!(ctx, (key, val))
-	key ∈ keys(ctx) || (ctx[key] = val)
-	ctx[key] == val
-end
+function tighten!(ctx, var; lb=nothing, ub=nothing)
+	(old_lb, old_ub) = get(ctx, var, (var.lb, var.ub))
 
-function parametersagree!(ctx, A, B::KindVar)
-	@ctx B.lb ⊆ A ⊆ B.ub && iscompatible!(ctx, B => A)
-end
-function parametersagree!(ctx, A::KindVar, B::KindVar)
-	@ctx A.lb ⊆ B.lb && A.ub ⊆ B.ub && iscompatible!(ctx, B => A)
-end
-function parametersagree!(ctx, A::Kind, B::Kind)
-	A.name === B.name && length(A.parameters) === length(B.parameters) || return false
-	for (a, b) in zip(A.parameters, B.parameters)
-		parametersagree!(ctx, a, b) || return false
-	end
+	!isnothing(lb) && (lb = @ctx old_lb ⊆ lb ? lb : old_lb)
+	!isnothing(ub) && (ub = @ctx ub ⊆ old_ub ? ub : old_ub)
+
+	ctx[var] = (lb = something(lb, old_lb), ub = something(ub, old_ub))
 	true
 end
-parametersagree!(ctx, A::T, B::T) where T = A == B
-parametersagree!(ctx, A, B) = false
 
+getctx(ctx, A) = get(ctx, A, (lb = A.lb, ub = A.ub))
+
+# A KindVar may be thought of as the set `setdiff(B.ub, B.lb)`.
+# When variables are involved, `A ⊆ B` should be interpreted as:
+# “is it POSSIBLE for A ⊆ B? If so, tighten variable constraints to guarantee it.”
+@ctx A::Kinds   ⊆ B::KindVar = A ⊆ getctx(ctx, B).ub && tighten!(ctx, B; lb = A)
+@ctx A::KindVar ⊆ B::Kinds   = getctx(ctx, A).lb ⊆ B && tighten!(ctx, A; ub = B)
+@ctx A::KindVar ⊆ B::KindVar = getctx(ctx, A).ub ⊆ getctx(ctx, B).lb || getctx(ctx, A).lb ⊆ getctx(ctx, B).ub # Tighten? Which?
+
+parametersagree!(ctx, a, b) = a === b
+parametersagree!(ctx, a::Union{Kinds,KindVar}, b::Union{Kinds,KindVar}) = @ctx a ⊆ b && b ⊆ a
 
 function issubkind!(ctx, A::Kind, B::Kind)
 	(A === Bottom || B === Top) && return true
 	(A === Top || B === Bottom) && return false
 
-	parametersagree!(ctx, A, B) || superkind(A) ⊆ B
+	A.name === B.name || return @ctx superkind(A) ⊆ B
+
+	for (a, b) in zip(A.parameters, B.parameters)
+		parametersagree!(ctx, a, b) || return false
+	end
+	true
 end
 
-issubkind!(ctx, A::Kinds,        B::UnionAllKind) = issubkind!(copy(ctx), A, B.body)
-issubkind!(ctx, A::UnionAllKind, B::Kinds)        = issubkind!(copy(ctx), A.body, B)
-issubkind!(ctx, A::UnionAllKind, B::UnionAllKind) = issubkind!(copy(ctx), A.body, B.body)
+# @ctx function ⊆(A::TupleKind, B::TupleKind)
+# 	length(A.kinds) === length(B.kinds) || return false
 
-issubkind!(ctx, A::UnionKind, B::UnionAllKind) = issubkind!(copy(ctx), A.a, B.body) && issubkind!(copy(ctx), A.b, B.body)
+# 	for (a, b) in zip(A.kinds, b.kinds)
+# 		# tuples are covariant (not invariant!)
+# 		# @ctx a ⊆ b || return false
+# 		@show a b
+# 		parametersagree!(ctx, ⊆, a, b) || return false
+# 	end
+# 	true
+# end
+
+
+function issubkind!(ctx, A::Kinds, B::UnionAllKind)
+	subctx = copy(ctx)
+	tighten!(subctx, B.var)
+	issubkind!(subctx, A, B.body)
+end
+function issubkind!(ctx, A::UnionAllKind, B::Kinds)
+	subctx = copy(ctx)
+	tighten!(subctx, A.var)
+	if issubkind!(subctx, A.body, B)
+		#TODO: think this through. Why does it work?
+		filter(subctx) do (var, (lb, ub))
+			lb == ub
+		end |> isempty
+	else
+		false
+	end
+
+end
+function issubkind!(ctx, A::UnionAllKind, B::UnionAllKind)
+	subctx = copy(ctx)
+	tighten!(subctx, A.var)
+	tighten!(subctx, B.var)
+	issubkind!(subctx, A.body, B.body)
+
+end
+
+issubkind!(ctx, A::UnionKind, B::UnionAllKind) = issubkind!(ctx, A.a, B) && issubkind!(ctx, A.b, B)
+ 

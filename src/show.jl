@@ -7,21 +7,20 @@ Base.show(io::IO, a::DisplayWrapper) = a.showfn(io, a.value)
 toexpr(io, a) = a
 function toexpr(io, K::Kind)
 	name = K.name
-	expr = if isempty(K.parameters)
+	if isempty(K.parameters)
 		name
 	else
 		:( $name[$(toexpr.(io, K.parameters)...)] )
-	end
-	isconcretekind(K) || return expr
-	DisplayWrapper(expr) do io, x
-		printstyled(io, x, underline=true)
 	end
 end
 function toexpr(io, K::KindVar)
 	expr = DisplayWrapper(K.name) do io, x
 		printstyled(io, x, bold=true)
 	end
+
+	# check if variable bounds have already been seen; show name only
 	K ∈ get(io, :kindvars, Set()) && return expr
+
 	if (K.lb, K.ub) === (Bottom, Top)
 		expr
 	elseif K.lb === Bottom
@@ -33,8 +32,8 @@ function toexpr(io, K::KindVar)
 	end
 end
 function toexpr(io, K::UnionAllKind)
-	kindvars = get(io, :kindvars, Set{KindVar}())
-	push!(kindvars, K.var)
+	# mark K.var as “seen” and don’t bother displaying its bounds again
+	kindvars = get(io, :kindvars, Set{KindVar}()) ∪ Ref(K.var)
 	subio = IOContext(io, :kindvars=>kindvars)
 	:( $(toexpr(subio, K.body)) where $(toexpr(io, K.var)) )
 end
