@@ -344,4 +344,31 @@ end
 end
 
 
+@testset "tuple kinds" begin
+
+	Number′  = Kind(:Number,  Top,      [], false)
+	Real′    = Kind(:Real,    Number′,  [], false)
+	Integer′ = Kind(:Integer, Real′,    [], false)
+	Signed′  = Kind(:Signed,  Integer′, [], false)
+	Int′     = Kind(:Int,     Signed′,  [], true)
+	Bool′    = Kind(:Bool,    Integer′, [], true)
+	Complex′ = let T = KindVar(:T, Bottom, Real′)
+		UnionAllKind(T, Kind(:Complex, Number′, [T], true))
+	end
+
+	T = KindVar(:T)
+	
+	@test Tuple{Int,Bool} <: Tuple{Real,Number}
+	@test TupleKind(Int′,Bool′) ⊆ TupleKind(Real′,Number′)
+
+	@test !(Tuple{Int,Number} <: Tuple{Real,Real})
+	@test TupleKind(Int′,Number′) ⊈ TupleKind(Real′,Real′)
+
+	@test Tuple{Bool,Complex{Bool}} <: Tuple{T,Complex{T}} where T
+	@test TupleKind(Bool′,Complex′[Bool′]) ⊆ UnionAllKind(T, TupleKind(T, Complex′[T]))
+
+	@test !(Tuple{Bool,Complex{Int}} <: Tuple{T,Complex{T}} where T)
+	@test TupleKind(Bool′,Complex′[Int′]) ⊈ UnionAllKind(T, TupleKind(T, Complex′[T]))
+end
+
 nothing

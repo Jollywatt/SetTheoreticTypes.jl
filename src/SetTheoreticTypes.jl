@@ -2,7 +2,7 @@ module SetTheoreticTypes
 
 using MacroTools
 
-export Kind, KindVar, UnionAllKind, UnionKind, IntersectionKind, ComplementKind
+export Kind, KindVar, UnionAllKind, UnionKind, IntersectionKind, ComplementKind, TupleKind
 export Top, Bottom
 
 export superkind, superkinds, isconcretekind
@@ -103,13 +103,20 @@ struct ComplementKind
 	ComplementKind(A::IntersectionKind) = UnionKind(!A.a, !A.b)
 end
 
+
+struct TupleKind
+	kinds::Tuple
+	TupleKind(kinds...) = new(kinds)
+end
+
+
 isconcretekind(A::Kind) = A.isconcrete && !any(p -> p isa KindVar, A.parameters)
 isconcretekind(A::UnionAllKind) = false
 isconcretekind(A::UnionKind) = false
 isconcretekind(A::IntersectionKind) = false
 isconcretekind(A::ComplementKind) = false
 
-const Kinds = Union{Kind,UnionAllKind,UnionKind,IntersectionKind,ComplementKind}
+const Kinds = Union{Kind,UnionAllKind,UnionKind,IntersectionKind,ComplementKind,TupleKind}
 
 const Top = Kind(:Top, nothing, [], false)
 const Bottom = ComplementKind(Top)

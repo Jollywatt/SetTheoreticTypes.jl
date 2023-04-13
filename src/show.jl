@@ -42,10 +42,10 @@ end
 toexpr(io, K::UnionKind)        = :( $(toexpr(io, K.a)) ∪ $(toexpr(io, K.b)) )
 toexpr(io, K::IntersectionKind) = :( $(toexpr(io, K.a)) ∩ $(toexpr(io, K.b)) )
 toexpr(io, K::ComplementKind)   = :( !$(toexpr(io, K.a)) )
-
+toexpr(io, K::TupleKind)        = :( TupleKind($(K.kinds...)) )
 
 function Base.show(io::IO, K::Union{
-	Kind,KindVar,UnionAllKind,UnionKind,IntersectionKind,ComplementKind,
+	Kind,KindVar,UnionAllKind,UnionKind,IntersectionKind,ComplementKind,TupleKind,
 	KindInstance,
 	})
 	Base.show_unquoted(io, toexpr(io, K))

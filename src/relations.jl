@@ -77,7 +77,7 @@ getctx(ctx, A) = get(ctx, A, (lb = A.lb, ub = A.ub))
 @ctx A::KindVar ⊆ B::KindVar = getctx(ctx, A).ub ⊆ getctx(ctx, B).lb || getctx(ctx, A).lb ⊆ getctx(ctx, B).ub # Tighten? Which?
 
 parametersagree!(ctx, a, b) = a === b
-parametersagree!(ctx, a::Union{Kinds,KindVar}, b::Union{Kinds,KindVar}) = @ctx a ⊆ b && b ⊆ a
+parametersagree!(ctx, a::Union{Kinds,KindVar}, b::Union{Kinds,KindVar}) = @ctx a ⊆ b
 
 function issubkind!(ctx, A::Kind, B::Kind)
 	(A === Bottom || B === Top) && return true
@@ -86,22 +86,19 @@ function issubkind!(ctx, A::Kind, B::Kind)
 	A.name === B.name || return @ctx superkind(A) ⊆ B
 
 	for (a, b) in zip(A.parameters, B.parameters)
-		parametersagree!(ctx, a, b) || return false
+		parametersagree!(ctx, a, b) && parametersagree!(ctx, b, a) || return false
 	end
 	true
 end
 
-# @ctx function ⊆(A::TupleKind, B::TupleKind)
-# 	length(A.kinds) === length(B.kinds) || return false
+@ctx function (A::TupleKind ⊆ B::TupleKind)
+	length(A.kinds) === length(B.kinds) || return false
 
-# 	for (a, b) in zip(A.kinds, b.kinds)
-# 		# tuples are covariant (not invariant!)
-# 		# @ctx a ⊆ b || return false
-# 		@show a b
-# 		parametersagree!(ctx, ⊆, a, b) || return false
-# 	end
-# 	true
-# end
+	for (a, b) in zip(A.kinds, B.kinds)
+		parametersagree!(ctx, a, b) || return false
+	end
+	true
+end
 
 
 function issubkind!(ctx, A::Kinds, B::UnionAllKind)
