@@ -4,6 +4,7 @@ function superkinds(A::Kind)
 	A === S ? (A,) : (A, superkinds(S)...)
 end
 
+
 function substitute(A::KindVar, (from, to)::Pair{KindVar})
 	A === from && return to
 	KindVar(A.name, substitute(A.lb, from => to), substitute(A.ub, from => to))
@@ -27,6 +28,7 @@ substitute(A::UnionKind, sub) = UnionKind(substitute(A.a, sub), substitute(A.b, 
 substitute(A::ComplementKind, sub) = ComplementKind(substitute(A.a, sub))
 substitute(A, _) = A
 
+
 apply_kind(A) = A
 apply_kind(A::UnionAllKind, B) = substitute(A, A.var => B)
 apply_kind(A, B) = error("Cannot apply $B to kind $A: no free parameters.")
@@ -34,16 +36,3 @@ apply_kind(A, B, C...) = apply_kind(apply_kind(A, B), C...)
 
 
 
-
-
-
-
-function Base.getindex(A::Kinds, B...)
-	apply_kind(A, B...)
-end
-
-Base.issubset(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = issubkind!(IdDict(), A, B)
-
-Base.union(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = UnionKind(A, B)
-Base.intersect(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = IntersectionKind(A, B)
-Base.:!(A::Union{Kinds,KindVar}) = ComplementKind(A)

@@ -109,14 +109,10 @@ struct TupleKind
 	TupleKind(kinds...) = new(kinds)
 end
 
+const Kinds = Union{Kind,UnionAllKind,UnionKind,IntersectionKind,ComplementKind,TupleKind}
 
 isconcretekind(A::Kind) = A.isconcrete && !any(p -> p isa KindVar, A.parameters)
-isconcretekind(A::UnionAllKind) = false
-isconcretekind(A::UnionKind) = false
-isconcretekind(A::IntersectionKind) = false
-isconcretekind(A::ComplementKind) = false
-
-const Kinds = Union{Kind,UnionAllKind,UnionKind,IntersectionKind,ComplementKind,TupleKind}
+isconcretekind(A::Kinds) = false
 
 const Top = Kind(:Top, nothing, [], false)
 const Bottom = ComplementKind(Top)
@@ -128,6 +124,21 @@ include("relations.jl")
 include("dispatch.jl")
 include("syntax.jl")
 include("show.jl")
+
+
+
+Base.getindex(A::Kinds, B...) = apply_kind(A, B...)
+
+Base.issubset(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = issubkind!(IdDict(), A, B)
+
+Base.union(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = UnionKind(A, B)
+
+Base.intersect(A::Union{Kinds,KindVar}, B::Union{Kinds,KindVar}) = IntersectionKind(A, B)
+
+Base.:!(A::Union{Kinds,KindVar}) = ComplementKind(A)
+
+Base.in(k::KindInstance, K::Kinds) = k.kind ⊆ K
+
 
 
 end # module SetTheoreticTypes

@@ -4,8 +4,8 @@ struct KindInstance
 end
 
 struct KindMethod
-	signature
 	fn
+	signature
 end
 
 struct KindFunction
@@ -21,19 +21,14 @@ function (K::Kinds)(value)
 end
 
 function (f::KindFunction)(args...)
+	argkind = TupleKind(kindof.(args)...)
 	applicable = filter(f.methods) do method
-		length(args) == length(method.signature) || return false
-		for (arg, sig) ∈ zip(args, method.signature)
-			arg ∈ sig || return false
-		end
-		true
+		argkind ⊆ method.signature
 	end
 
-	isempty(applicable) && error("no method for $(f.name)$(args)")
+	isempty(applicable) && error("$(typeof(f)) $(f.name) has no method matching $argkind")
 	length(applicable) > 1 && @warn "method ambiguity; choosing most recently defined" applicable
 
 	method = last(applicable)
 	method.fn((arg.value for arg in args)...)
 end
-
-Base.in(k::KindInstance, K::Kinds) = k.kind ⊆ K
