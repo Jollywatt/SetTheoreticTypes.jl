@@ -75,7 +75,11 @@ function translate(expr)
 			name = Meta.quot(A)
 			new_params = isnothing(params) ? [] : last.(translate_parameter.(params, true))
 			isconcrete = node.head == :struct
-			:($A = Kind($name, $(something(B, Top)), $new_params, $isconcrete))
+			node = :(Kind($name, $(something(B, Top)), [$(new_params...)], $isconcrete))
+			for var in new_params
+				node = :( UnionAllKind($var, $node) )
+			end
+			:($A = $node)
 		elseif node isa Expr && node.head ∈ [:function]
 			translate_method(node)
 		else

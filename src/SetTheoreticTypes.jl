@@ -103,7 +103,11 @@ struct ComplementKind
 	ComplementKind(A::IntersectionKind) = UnionKind(!A.a, !A.b)
 end
 
+"""
+	TupleKind(A, B...)
 
+Set-theoretic tuple kind-type, analogous to `Core.Tuple`.
+"""
 struct TupleKind
 	kinds::Tuple
 	TupleKind(kinds...) = new(kinds)
