@@ -4,8 +4,8 @@ postwalk(f, e) = f(e)
 
 macro ctx(expr)
 	transforms = Dict(
-		:⊆ => (a, b) -> :( issubkind!(ctx, $a, $b) ),
-		:⊇ => (a, b) -> :( issubkind!(ctx, $b, $a) ),
+		:⊆ => (a, b) -> :( SetTheoreticTypes.issubkind!(ctx, $a, $b) ),
+		:⊇ => (a, b) -> :( SetTheoreticTypes.issubkind!(ctx, $b, $a) ),
 	)
 	postwalk(expr) do n
 		if n isa Expr && n.head == :call

@@ -38,7 +38,7 @@ function translate_method(expr)
 	quote
 		let
 			signature = $sig
-			method = KindMethod(signature) do $(argnames...)
+			method = KindMethod(signature) do $(argnames...), $(def[:whereparams]...)
 				$(def[:body])
 			end
 			if !isdefined(@__MODULE__, $fnname)

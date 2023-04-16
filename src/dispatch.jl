@@ -30,5 +30,17 @@ function (f::KindFunction)(args...)
 	length(applicable) > 1 && @warn "method ambiguity; choosing most recently defined" applicable
 
 	method = last(applicable)
-	method.fn((arg.value for arg in args)...)
+
+	ctx = IdDict()
+	
+	sig = method.signature
+	params = KindVar[]
+	while sig isa UnionAllKind
+		push!(params, sig.var)
+		sig = sig.body
+	end
+
+	@ctx argkind ⊆ sig
+	
+	method.fn((arg.value for arg in args)..., (ctx[T].lb for T in params)...)
 end
