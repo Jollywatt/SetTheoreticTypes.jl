@@ -34,17 +34,17 @@ function translate_method(expr)
 		end
 	end
 
-	fnname = Meta.quot(def[:name])
+	fnname = def[:name]
 	quote
+		if !@isdefined($fnname)
+			$fnname = KindFunction($(Meta.quot(fnname)), [])
+		end
 		let
 			signature = $sig
 			method = KindMethod(signature) do $(argnames...), $(def[:whereparams]...)
 				$(def[:body])
 			end
-			if !isdefined(@__MODULE__, $fnname)
-				setglobal!(@__MODULE__, $fnname, KindFunction($fnname, []))
-			end
-			push!(getglobal(@__MODULE__, $fnname).methods, method)
+			push!($fnname.methods, method)
 		end
 	end
 end
@@ -73,11 +73,14 @@ function translate(expr)
 				struct A_ end
 			)
 			name = Meta.quot(A)
-			new_params = isnothing(params) ? [] : last.(translate_parameter.(params, true))
+			new_params = isnothing(params) ? [] : translate_parameter.(params, true)
+			names, vars = zip(new_params...)
 			isconcrete = node.head == :struct
-			node = :(Kind($name, $(something(B, Top)), [$(new_params...)], $isconcrete))
-			for var in new_params
-				node = :( UnionAllKind($var, $node) )
+			node = :(Kind($name, $(something(B, Top)), [$(names...)], $isconcrete))
+			for (name, var) in new_params
+				node = :(let $name = $var
+					UnionAllKind($name, $node)
+				end)
 			end
 			:($A = $node)
 		elseif node isa Expr && node.head ∈ [:function]

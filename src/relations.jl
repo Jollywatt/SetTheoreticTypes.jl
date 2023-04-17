@@ -14,6 +14,8 @@ which is a little easier.
 
 SimpleKind = Union{Kind}
 
+function issubkind! end
+
 @ctx A::SimpleKind       ⊆ B::UnionKind        = A ⊆ B.a || A ⊆ B.b
 @ctx A::UnionKind        ⊆ B::SimpleKind       = A.a ⊆ B && A.b ⊆ B
 @ctx A::UnionKind        ⊆ B::UnionKind        = A.a ⊆ B && A.b ⊆ B

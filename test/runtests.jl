@@ -371,4 +371,25 @@ end
 	@test TupleKind(Bool′,Complex′[Int′]) ⊈ UnionAllKind(T, TupleKind(T, Complex′[T]))
 end
 
+
+@testset "methods and dispatch" begin
+	@stt struct A end
+	@stt f(x ∈ A) = A(x.value^2)
+	@test f(A(10)) == A(100)
+
+	@stt struct B end
+	@stt f(x ∈ B) = B(x.value + 1)
+	@test f(B(1)) == B(2)
+	@test f(A(1)) == A(1)
+
+	@stt f(x ∈ T, y ∈ T) where T = x.value == y.value
+	@test f(A(1), A(1)) == true
+	@test f(B(1), B(2)) == false
+
+	@stt abstract type C[T] end
+	@stt struct D[T] ⊆ C[T] end
+	@stt g(x ∈ T, y ∈ C[T]) where T = T(x.value*y.value)
+	@test g(A("Su"), D[A]("shi")) == A("Sushi")
+end
+
 nothing

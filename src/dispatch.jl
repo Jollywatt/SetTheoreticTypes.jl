@@ -42,5 +42,5 @@ function (f::KindFunction)(args...)
 
 	@ctx argkind ⊆ sig
 	
-	method.fn((arg.value for arg in args)..., (ctx[T].lb for T in params)...)
+	method.fn(args..., (ctx[T].lb for T in params)...)
 end
