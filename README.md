@@ -8,7 +8,7 @@ _A toy type system with intersections and complements in Julia_
 [![Project Status: Concept – Minimal or no implementation has been done yet, or the repository is only intended to be a limited example, demo, or proof-of-concept.](https://www.repostatus.org/badges/latest/concept.svg)](https://www.repostatus.org/#concept)
 
 
-Inspired by [this Discourse discussion](https://discourse.julialang.org/t/rfc-language-support-for-traits-yay-or-nay/93914/26) and [this speculative excerpt](https://youtu.be/Z2LtJUe1q8c?t=1772) of Jeff Bezanson’s 2017 JuliaCon talk, this module implements a few bits of a “set-theoretic type system”. **It does not extend Julia’s type system** but exists separately from it, serving as a proof of concept for intersection and complement types. 
+Inspired by [this Discourse discussion](https://discourse.julialang.org/t/rfc-language-support-for-traits-yay-or-nay/93914/26) and [this speculative excerpt](https://youtu.be/Z2LtJUe1q8c?t=1772) of Jeff Bezanson’s 2017 JuliaCon talk, this module implements a few bits of a “set-theoretic type system”. **It does not extend Julia’s type system** but is separate from it, serving as a proof of concept for intersection and complement types. 
 
 ```julia
 @stt begin
@@ -85,7 +85,7 @@ In particular, this means concrete types cannot have subtypes other than themsel
 Thus, intersection types are only interesting for abstract types.
 
 I find it helpful to picture set-theoretic types as sets of equivalence classes, where values of the same concrete type are equivalent.
-In this picture, concrete types are singleton sets, while abstract types are sets of arbitrary extent (possibly overlapping with other types). This makes the fact self-evident that no distinct concrete types may intersect.
+In this picture, concrete types are point-like singleton sets, while abstract types are sets of arbitrary extent.
 
 As with Core Julia, parametric types are like indexed sets of types. Type parameters are invariant; they are merely part of the type’s name.
 ```julia
@@ -98,6 +98,8 @@ As with Core Julia, parametric types are like indexed sets of types. Type parame
 
 
 The `where`-notation  `A[T] where L ⊆ T ⊆ U = A[T₁] ∪ A[T₂] ∪ ...` represents a union over all parameter values `T` for which `L ⊆ T ⊆ U`.
+
+Note that tuples are not types with invariant parameters — they are a product type. In the set-theoretic picture, `TupleKind(A,B)` is a Cartesian product and is a supertype of `TupleKind(Alpha,Beta)` because `Alpha ⊆ A` and `Beta ⊆ B`.
 
 ## Syntax and convenience macros
 
@@ -157,8 +159,8 @@ quote
     ])
 
     unpack = KindFunction(:unpack, [
-        KindMethod(let T = KindVar(:T); UnionAllKind(T, TupleKind(Box[T])) end) do x, T
-            T(x)
+        KindMethod(TupleKind(Box)) do x
+            x.value
         end
     ])
 end
